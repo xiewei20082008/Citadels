@@ -1,8 +1,8 @@
 // Settings: one panel for language, sound, gameplay, display and your record, opened from the lobby
 // corner and the in-game top bar. Preferences persist in localStorage; other modules read `prefs`.
-import { t, getLang, setLang, LANGS } from './i18n.js?v=b3bf14c2';
-import { svg } from './icons.js?v=b3bf14c2';
-import { sfx, soundOn, setSound, musicEnabled, setMusic, volume, setVolume, TRACKS, musicTrack, setTrack } from './sfx.js?v=b3bf14c2';
+import { t, getLang, setLang, LANGS } from './i18n.js?v=efde9582';
+import { svg } from './icons.js?v=efde9582';
+import { sfx, soundOn, setSound, musicEnabled, setMusic, volume, setVolume, TRACKS, musicTrack, setTrack } from './sfx.js?v=efde9582';
 
 const KEY = 'c3d.settings';
 const systemCalm = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };

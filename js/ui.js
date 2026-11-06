@@ -1,15 +1,15 @@
 // In-game HUD: top bar, call track, seat labels, hand dock, action buttons, sheets (modals),
 // character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM over WebGL.
 
-import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=b3bf14c2';
+import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=efde9582';
 import {
   rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit,
-} from './engine.js?v=b3bf14c2';
-import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=b3bf14c2';
-import { svg, ROMAN } from './icons.js?v=b3bf14c2';
-import { sfx } from './sfx.js?v=b3bf14c2';
-import { prefs, alertTurn, vibrate } from './settings.js?v=b3bf14c2';
-import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=b3bf14c2';
+} from './engine.js?v=efde9582';
+import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=efde9582';
+import { svg, ROMAN } from './icons.js?v=efde9582';
+import { sfx } from './sfx.js?v=efde9582';
+import { prefs, alertTurn, vibrate } from './settings.js?v=efde9582';
+import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=efde9582';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

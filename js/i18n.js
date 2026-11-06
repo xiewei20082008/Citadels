@@ -1,15 +1,15 @@
 // English + Chinese live in the table below; other languages are one file each in ./lang/ (missing keys
 // fall back to English). t('key', {vars}) — '{name}' placeholders.
-import { CHAR } from './data.js?v=b3bf14c2';
-import ja from './lang/ja.js?v=b3bf14c2';
-import ko from './lang/ko.js?v=b3bf14c2';
-import es from './lang/es.js?v=b3bf14c2';
-import fr from './lang/fr.js?v=b3bf14c2';
-import zhTW from './lang/zh-TW.js?v=b3bf14c2';
-import de from './lang/de.js?v=b3bf14c2';
-import pt from './lang/pt.js?v=b3bf14c2';
-import ru from './lang/ru.js?v=b3bf14c2';
-import it from './lang/it.js?v=b3bf14c2';
+import { CHAR } from './data.js?v=efde9582';
+import ja from './lang/ja.js?v=efde9582';
+import ko from './lang/ko.js?v=efde9582';
+import es from './lang/es.js?v=efde9582';
+import fr from './lang/fr.js?v=efde9582';
+import zhTW from './lang/zh-TW.js?v=efde9582';
+import de from './lang/de.js?v=efde9582';
+import pt from './lang/pt.js?v=efde9582';
+import ru from './lang/ru.js?v=efde9582';
+import it from './lang/it.js?v=efde9582';
 
 export const EXTRA = { 'zh-TW': zhTW, ja, ko, es, fr, de, pt, ru, it };
 export const LANGS = {
