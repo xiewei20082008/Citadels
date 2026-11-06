@@ -831,6 +831,8 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
 .sheet-drawer[hidden] { display: none; }
 .sheet-drawer { position: fixed; z-index: 21; top: 76px; left: 50%; transform: translateX(-50%); pointer-events: auto;
   max-width: calc(100vw - 24px); white-space: normal; box-shadow: var(--shadow); }
+.btn.sheet-drawer:hover:not(:disabled) { transform: translate(-50%, -1px); }
+.btn.sheet-drawer:active:not(:disabled) { transform: translate(-50%, 1px); }
 .sh-controls { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0; }
 .sh-head h2 { min-width: 0; overflow-wrap: anywhere; }
 .sh-controls .btn { white-space: normal; max-width: 115px; }
