@@ -39,14 +39,15 @@ export function createUI(ctx) {
         <div class="actions"></div>
       </div>
     </section>
-    <div class="sheet-wrap"><div class="sheet" role="dialog" aria-modal="true"></div></div>
+    <div class="sheet-wrap"><div id="game-sheet" class="sheet" role="dialog" aria-modal="true"></div></div>
+    <button class="btn sheet-drawer" data-a="restoreSheet" aria-controls="game-sheet" aria-expanded="false" hidden></button>
     <div class="tip"></div>`;
 
   const els = {
     top: $('.topbar', root), labels: $('.labels', root), floaters: $('.floaters', root), toasts: $('.toasts', root),
     banner: $('.banner', root), dock: $('.dock', root), prompt: $('.prompt', root), me: $('.me-panel', root),
     hand: $('.hand', root), actions: $('.actions', root), wrap: $('.sheet-wrap', root), sheet: $('.sheet', root),
-    tip: $('.tip', root),
+    tip: $('.tip', root), drawer: $('.sheet-drawer', root),
   };
 
   function chrome() {
@@ -67,7 +68,7 @@ export function createUI(ctx) {
   chrome();
 
   // local (non-game) UI state
-  const L = { sel: null, sheet: null, multi: new Set(), inspect: null, log: [], view: null, labelEls: new Map(), hint: null, shown: null };
+  const L = { drawers: [], sel: null, sheet: null, multi: new Set(), inspect: null, log: [], view: null, labelEls: new Map(), hint: null, shown: null };
 
   const insets = () => ctx.scene.setInsets({ top: els.top.offsetHeight + 8, bottom: els.dock.offsetHeight + 8 });
   new ResizeObserver(insets).observe(els.dock);
@@ -310,6 +311,10 @@ export function createUI(ctx) {
     const T = view.turn;
     const myTurn = view.phase === 'turns' && T?.pid === view.me && !view.interrupt;
     const draftMine = view.phase === 'draft' && view.draft.order[view.draft.idx] === view.me;
+    // Hidden decisions survive view refreshes, but never a new decision or seat.
+    const decisionKey = JSON.stringify([view.me, view.round, view.phase, view.draft?.idx,
+      view.draft?.mustDiscard, T?.pid, T?.charId, T?.pending?.k, view.interrupt?.pid, view.interrupt?.card?.uid]);
+    if (decisionKey !== L.decisionKey) { L.decisionKey = decisionKey; L.drawers = []; }
     // a new turn (incl. my second character straight after my first) closes the last turn's tools
     const turnKey = myTurn ? view.round + ':' + T.charId : null, wasWar = L.sheet === 'war';
     if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
@@ -347,7 +352,7 @@ export function createUI(ctx) {
     const auto = view.interrupt?.pid === view.me ? 'grave'
       : draftMine ? (view.draft.mustDiscard ? 'discard' : 'draft')
       : pend?.k === 'keep' ? 'keep' : pend?.k === 'wizard' ? 'wizPick' : pend?.k === 'seerGive' ? 'seerGive' : null;
-    if (auto && L.sheet !== auto) { L.sheet = auto; L.multi.clear(); }
+    if (auto && L.sheet !== auto && !L.drawers.some(d => d.sheet === auto)) { L.sheet = auto; L.multi.clear(); }
     else if (!auto && BLOCKING.includes(L.sheet) && L.sheet !== 'over') L.sheet = null;
     if (draftMine) coach('draft');
     if (myTurn) coach('turn');
@@ -595,6 +600,10 @@ export function createUI(ctx) {
     els.wrap.classList.toggle('open', !!s);
     els.wrap.classList.toggle('blocking', BLOCKING.includes(s));
     els.wrap.classList.toggle('side', ['war', 'inspect', 'log', 'round'].includes(s)); // keep the table clickable
+    els.sheet.inert = !s;
+    els.sheet.setAttribute('aria-hidden', String(!s));
+    els.drawer.hidden = !L.drawers.length;
+    els.drawer.textContent = `${t('ui.showPopup')} · ${L.drawers.at(-1)?.title || ''}`;
     if (!s || !v) { els.sheet.innerHTML = ''; return; }
     // never leave a decision dialog on screen with nothing to decide
     if ((s === 'draft' || s === 'discard') && !(v.phase === 'draft' && v.draft.options?.length)) { L.sheet = null; return renderSheet(); }
@@ -764,13 +773,49 @@ export function createUI(ctx) {
     if (!html) { L.sheet = null; els.wrap.classList.remove('open'); els.sheet.innerHTML = ''; return; }
     els.sheet.className = 'sheet' + (wide ? ' wide' : '') + (s === 'over' ? ' over-sheet' : '');
     els.sheet.innerHTML = html;
+    const collapse = `<button class="btn small ghost" data-a="hideSheet" aria-controls="game-sheet" aria-expanded="true">${t('ui.hidePopup')}</button>`;
+    const head = $('.sh-head', els.sheet);
+    if (head) {
+      const controls = document.createElement('div');
+      controls.className = 'sh-controls';
+      controls.innerHTML = collapse;
+      const close = $('[data-a="close"]', head);
+      if (close) controls.appendChild(close);
+      head.appendChild(controls);
+    } else els.sheet.insertAdjacentHTML('afterbegin', `<div class="sh-controls over-controls">${collapse}</div>`);
     if (s === 'log') { const b = $('.sh-body', els.sheet); b.scrollTop = b.scrollHeight; }
     markHint();
     // keyboard users land inside a decision dialog
     if (BLOCKING.includes(s) && !els.sheet.contains(document.activeElement)) els.sheet.querySelector('button:not([disabled]):not([data-a="close"])')?.focus({ preventScroll: true });
   }
 
+  function hideSheet() {
+    if (!L.sheet) return;
+    L.drawers.push({ sheet: L.sheet, multi: new Set(L.multi),
+      sel: L.sel, draftSel: L.draftSel, targetSel: L.targetSel, warSel: L.warSel, inspect: L.inspect,
+      title: $('h2, h1', els.sheet)?.textContent || '' });
+    L.sheet = null;
+    L.multi.clear();
+    renderSheet();
+    hideTip();
+    els.drawer.focus({ preventScroll: true });
+  }
+  function restoreSheet() {
+    const saved = L.drawers.pop();
+    if (!saved) return;
+    const { title, ...state } = saved;
+    Object.assign(L, state);
+    renderSheet();
+    $('[data-a="hideSheet"]', els.sheet)?.focus({ preventScroll: true });
+  }
   function openSheet(name) {
+    // Reopening a hidden tool must retain its card selections.
+    const saved = L.drawers.findIndex(d => d.sheet === name);
+    if (saved !== -1) {
+      L.drawers.push(...L.drawers.splice(saved, 1));
+      return restoreSheet();
+    }
+    if (L.sheet && BLOCKING.includes(L.sheet)) hideSheet();
     L.sheet = name;
     L.multi.clear();
     renderSheet();
@@ -794,6 +839,8 @@ export function createUI(ctx) {
     if (!view) return;
     const me = view.players[view.me];
     switch (a) {
+      case 'hideSheet': return hideSheet();
+      case 'restoreSheet': return restoreSheet();
       case 'close': return closeSheet();
       case 'sheet': return openSheet(v);
       case 'overview': ctx.scene.resetView(); return;
@@ -902,11 +949,12 @@ export function createUI(ctx) {
     if (!root.classList.contains('on') || e.target.closest?.('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
     const click = sel => { const b = root.querySelector(sel); if (b && !b.disabled) { b.click(); e.preventDefault(); } };
     const k = e.key.toLowerCase();
-    if (k === 'escape') { if (L.sheet && !els.wrap.classList.contains('blocking')) closeSheet(); else els.top.classList.remove('emoting'); return; }
+    if (k === 'escape') { if (L.sheet) hideSheet(); else if (L.drawers.length) restoreSheet(); else els.top.classList.remove('emoting'); return; }
     if (els.wrap.classList.contains('open') && !['h', 'l'].includes(k)) {
       if (/^[1-9]$/.test(k)) click(`.sheet .ccard:nth-of-type(${k}), .sheet .cards-big > :nth-child(${k}) [data-a], .sheet .cards-big > .card:nth-child(${k})`);
       return;
     }
+    if (L.drawers.some(d => BLOCKING.includes(d.sheet)) && !['h', 'l'].includes(k)) return;
     if (k === 'g') click('[data-a="gold"]');
     else if (k === 'd') click('[data-a="draw"]');
     else if (k === 'b') click('[data-a="build"]');
@@ -975,7 +1023,7 @@ export function createUI(ctx) {
     render, event, frame, toast, onPick, onHover, showEmote,
     relang() { chrome(); if (L.view) render(L.view); },
     show() { root.classList.add('on'); insets(); },
-    hide() { root.classList.remove('on'); L.sheet = null; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(); },
+    hide() { root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(); },
     resetLog() { L.log = []; L.evShown = undefined; L.shown = null; },
   };
 }

@@ -50,9 +50,9 @@ const slider = (kind, enabled) => `<input type="range" class="vol" min="0" max="
 
 function render() {
   const mode = ctx.mode(), st = ctx.stats(), lang = getLang();
-  root.innerHTML = `<div class="set" role="dialog" aria-modal="true" aria-labelledby="set-title">
+  root.innerHTML = `<div id="settings-panel" class="set" role="dialog" aria-modal="true" aria-labelledby="set-title">
     <div class="sh-head"><h2 id="set-title">${svg('gear')}${t('set.title')}</h2>
-      <button class="icon-btn" data-s="close" aria-label="${t('ui.close')}">${svg('close')}</button></div>
+      <div class="sh-controls"><button class="btn small ghost" data-s="hide" aria-controls="settings-panel" aria-expanded="true">${t('ui.hidePopup')}</button><button class="icon-btn" data-s="close" aria-label="${t('ui.close')}">${svg('close')}</button></div></div>
     <div class="set-body">
       <section class="set-lang"><h4>${t('lb.lang')}</h4>
         <div class="lang-grid">${Object.entries(LANGS).map(([k, name]) =>
@@ -79,7 +79,7 @@ function render() {
       </section>
     </div>
     ${mode ? `<div class="sh-foot"><button class="btn danger" data-s="leave">${t('ui.leave')}</button></div>` : ''}
-  </div>`;
+  </div><button class="btn sheet-drawer" data-s="show" aria-controls="settings-panel" aria-expanded="false" hidden>${t('ui.showPopup')} · ${t('set.title')}</button>`;
 }
 
 export function openSettings() {
@@ -100,13 +100,14 @@ export function openSettings() {
   opener = document.activeElement;
   resetArmed = false; tipsReset = false;
   render();
+  root.classList.remove('collapsed');
   root.classList.add('open');
   root.querySelector('[data-s="close"]').focus({ preventScroll: true });
   sfx('click');
 }
 export function closeSettings() {
   if (!root?.classList.contains('open')) return;
-  root.classList.remove('open');
+  root.classList.remove('open', 'collapsed');
   opener?.focus?.({ preventScroll: true });
 }
 
@@ -117,6 +118,14 @@ function onClick(e) {
   const s = el.dataset.s, v = el.dataset.v;
   sfx('click');
   switch (s) {
+    case 'hide': case 'show': {
+      const hidden = s === 'hide';
+      root.classList.toggle('collapsed', hidden);
+      root.querySelector('.set').inert = hidden;
+      root.querySelector('[data-s="show"]').hidden = !hidden;
+      root.querySelector(hidden ? '[data-s="show"]' : '[data-s="hide"]').focus({ preventScroll: true });
+      return;
+    }
     case 'close': return closeSettings();
     case 'leave': closeSettings(); return ctx.leave();
     case 'lang': setLang(v); ctx.relang(); break;

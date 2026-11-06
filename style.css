@@ -826,3 +826,27 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
 }
 .mo-v .mo-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-v b { flex-shrink: 0; margin-left: auto; padding-left: 6px; color: var(--gold-hi); font-weight: 600; }
+
+/* Hidden popups leave the board interactive; the handle stays above the HUD. */
+.sheet-drawer[hidden] { display: none; }
+.sheet-drawer { position: fixed; z-index: 21; top: 76px; left: 50%; transform: translateX(-50%); pointer-events: auto;
+  max-width: calc(100vw - 24px); white-space: normal; box-shadow: var(--shadow); }
+.sh-controls { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0; }
+.sh-head h2 { min-width: 0; overflow-wrap: anywhere; }
+.sh-controls .btn { white-space: normal; max-width: 115px; }
+.over-controls { margin-bottom: 8px; }
+.sheet-wrap:not(.open) .sheet { visibility: hidden; }
+.set-wrap.collapsed { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.set-wrap.collapsed .set { display: none; }
+.set-wrap .sheet-drawer { z-index: 61; }
+@media (max-width: 760px) {
+  .sheet-drawer { top: 100px; font-size: 12px; }
+  .sh-head { gap: 6px; }
+  .sh-head h2 { font-size: 17px; }
+  .sh-controls .btn { max-width: 95px; padding: 7px 8px; font-size: 11px; }
+}
+
+.set-wrap:not(.open) { visibility: hidden; }
+
+.set-wrap .sheet-drawer { top: 136px; }
+@media (max-width: 760px) { .set-wrap .sheet-drawer { top: 160px; } }

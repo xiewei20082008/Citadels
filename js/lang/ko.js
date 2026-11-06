@@ -1,5 +1,6 @@
 // 한국어. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  'ui.hidePopup': '팝업 숨기기', 'ui.showPopup': '팝업 열기',
   'c.assassin': '암살자', 'c.thief': '도둑', 'c.magician': '마술사',
   'c.king': '왕', 'c.bishop': '주교', 'c.merchant': '상인',
   'c.architect': '건축가', 'c.warlord': '용병대장', 'c.queen': '여왕',

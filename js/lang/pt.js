@@ -1,5 +1,6 @@
 // Português (Brasil). Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  'ui.hidePopup': 'Ocultar janela', 'ui.showPopup': 'Mostrar janela',
   'c.assassin': 'Assassino', 'c.thief': 'Ladrão', 'c.magician': 'Mágico',
   'c.king': 'Rei', 'c.bishop': 'Bispo', 'c.merchant': 'Mercador',
   'c.architect': 'Arquiteto', 'c.warlord': 'Senhor da Guerra', 'c.queen': 'Rainha',

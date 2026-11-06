@@ -1,5 +1,6 @@
 // 繁體中文. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  'ui.hidePopup': '收起視窗', 'ui.showPopup': '展開視窗',
   'c.assassin': '刺客', 'c.thief': '盜賊', 'c.magician': '魔術師',
   'c.king': '國王', 'c.bishop': '主教', 'c.merchant': '商人',
   'c.architect': '建築師', 'c.warlord': '軍閥', 'c.queen': '王后',

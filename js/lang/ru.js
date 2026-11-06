@@ -1,5 +1,6 @@
 // Русский. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  'ui.hidePopup': 'Свернуть окно', 'ui.showPopup': 'Показать окно',
   'c.assassin': 'Ассасин', 'c.thief': 'Вор', 'c.magician': 'Чародей',
   'c.king': 'Король', 'c.bishop': 'Епископ', 'c.merchant': 'Купец',
   'c.architect': 'Зодчий', 'c.warlord': 'Кондотьер', 'c.queen': 'Королева',

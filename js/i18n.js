@@ -118,6 +118,8 @@ const D = {
   'ui.lab': ['Laboratory', '实验室'],
   'ui.cancel': ['Cancel', '取消'],
   'ui.confirm': ['Confirm', '确认'],
+  'ui.hidePopup': ['Hide popup', '收起弹窗'],
+  'ui.showPopup': ['Show popup', '展开弹窗'],
   'ui.close': ['Close', '关闭'],
   'ui.skip': ['Skip', '跳过'],
   'ui.yourTurn': ['Your turn — {char}', '你的回合 —— {char}'],

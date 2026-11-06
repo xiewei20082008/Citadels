@@ -1,5 +1,6 @@
 // Deutsch (long compounds carry soft hyphens so they wrap on small cards). Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  'ui.hidePopup': 'Fenster einklappen', 'ui.showPopup': 'Fenster anzeigen',
   'c.assassin': 'Assassine', 'c.thief': 'Dieb', 'c.magician': 'Magier',
   'c.king': 'König', 'c.bishop': 'Bischof', 'c.merchant': 'Händler',
   'c.architect': 'Baumeister', 'c.warlord': 'Söldner', 'c.queen': 'Königin',
