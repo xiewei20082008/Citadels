@@ -255,7 +255,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
     return { t: 'keep', uids: sorted.slice(0, P.n).map(c => c.uid) };
   }
   if (P?.k === 'wizard') {
-    const can = P.cards.filter(c => canPlace(me, c) && buildCost(me, c) <= me.gold);
+    const can = P.cards.filter(c => buildCost(me, c) <= me.gold);
     const take = best(can, c => c.cost) || best(P.cards, c => cardValue(me, c));
     return { t: 'wizTake', uid: take.uid, build: can.includes(take) && take.cost >= 3 };
   }

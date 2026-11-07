@@ -477,7 +477,9 @@ function actInner(state, pid, a, inPlace = false) {
       if (!pend || pend.k !== 'wizard') return fail('not peeking');
       const o = s.players[pend.target], card = o.hand.find(c => c.uid === a.uid);
       if (!card) return fail('bad card');
-      if (a.build && (!canPlace(p, card) || buildCost(p, card) > p.gold)) return fail('cannot build');
+      // The Wizard's direct build permits duplicates; that permission belongs
+      // to the builder, never to a Magistrate who confiscates the district.
+      if (a.build && buildCost(p, card) > p.gold) return fail('cannot build');
       o.hand = o.hand.filter(c => c.uid !== card.uid);
       T.pending = null;
       emit(s, 'wizTake', { pid, target: o.id });

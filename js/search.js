@@ -36,7 +36,13 @@ export function determinize(v, me) {
   if (s.turn?.pending?.cards) mark(s.turn.pending.cards);
   if (s.interrupt) known.add(s.interrupt.card.uid);
   const pool = shuffle(ALL.filter(c => !known.has(c.uid)).map(c => ({ ...c })));
-  for (const p of s.players) if (p.id !== me) p.hand = pool.splice(0, p.handCount);
+  for (const p of s.players) if (p.id !== me) {
+    // A Wizard peek is a copy of the target's hand, not a separate card zone.
+    // Keep those known cards in that hand so wizTake remains playable.
+    const seen = s.turn?.pending?.k === 'wizard' && s.turn.pending.target === p.id
+      ? s.turn.pending.cards || [] : [];
+    p.hand = [...structuredClone(seen), ...pool.splice(0, Math.max(0, p.handCount - seen.length))];
+  }
   s.deck = pool.slice(0, Math.max(0, v.deckCount));
 
   // characters

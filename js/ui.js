@@ -705,7 +705,7 @@ export function createUI(ctx) {
       html = sheetFrame(t('ui.wizTitle'), `<div class="plist">${opps.map(p => `<button class="pitem" data-a="peek" data-v="${p.id}">${avatar(p)}<span>${esc(p.name)}</span><span class="st">${svg('card')}<b>${p.handCount}</b></span></button>`).join('')}</div>`, { foot: hintFoot });
     } else if (s === 'wizPick' && pend) {
       html = sheetFrame(cname(11) + ' · ' + esc(P(pend.target).name), `<div class="cards-big">${sortHand(pend.cards).map(c => {
-        const canB = canPlace(me, c) && buildCost(me, c) <= me.gold;
+        const canB = buildCost(me, c) <= me.gold;
         return `<div class="wiz-opt">${cardHTML(c, { cls: 'big', costShown: buildCost(me, c) })}
           <button class="btn small" data-a="wizTake" data-v="${c.uid}">${t('ui.wizTake')}</button>
           <button class="btn small primary" data-a="wizBuild" data-v="${c.uid}" ${canB ? '' : 'disabled'}>${t('ui.wizBuild', { n: buildCost(me, c) })}</button></div>`;
