@@ -13,13 +13,16 @@ let seed = 12345; // seeded Math.random so any failure can be replayed
 Math.random = () => { let t = (seed = (seed + 0x6D2B79F5) | 0); t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const TOTAL = makeDeck().length;
-const SETS = Object.entries(PRESETS);
-const LEVELS = ['easy', 'normal', 'hard'];
+const SETS = [...Object.entries(PRESETS),
+  ['magistrate', [17, 2, 11, 4, 5, 16, 7, 8, 9]]];
+const LEVELS = ['hard'];
 
 // ── 1. twin worlds ───────────────────────────────────────────────────────────
 // Re-deal everything `pid` cannot see. Their view (= the only AI input) must not change.
 function twin(s, pid) {
   const t = structuredClone(s);
+  if (t.warrants && t.warrants.pid !== pid && !t.warrants.revealed)
+    t.warrants.signed = t.warrants.targets[Math.floor(Math.random() * t.warrants.targets.length)];
   t.seed = (Math.random() * 2 ** 31) | 0;
   const others = t.players.filter(p => p.id !== pid);
   const cards = shuffle([...t.deck, ...others.flatMap(p => p.hand)]);
@@ -40,9 +43,16 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // ── legal moves (for the monkey) ─────────────────────────────────────────────
 function candidates(s, pid) {
   const p = s.players[pid], out = [];
+  if (s.interrupt?.k === 'warrant') return [true, false].map(take => ({
+    t: 'warrantResponse', id: s.interrupt.id, round: s.interrupt.round, take,
+  }));
   if (s.interrupt) return [{ t: 'graveyard', take: true }, { t: 'graveyard', take: false }];
   if (s.phase === 'draft') return s.cfg.chars.flatMap(c => [{ t: 'pick', charId: c }, { t: 'discard', charId: c }]);
   const T = s.turn, P = T.pending;
+  if (T.charId === 17 && !T.used.ability && !P) {
+    const targets = shuffle([...s.cfg.chars]).slice(0, 3);
+    out.push({ t: 'warrants', targets, signed: targets[0] });
+  }
   if (P?.k === 'keep') return P.cards.map(c => ({ t: 'keep', uids: [c.uid] }));
   if (P?.k === 'wizard') return P.cards.flatMap(c => [{ t: 'wizTake', uid: c.uid }, { t: 'wizTake', uid: c.uid, build: true }]);
   if (P?.k === 'seerGive') return [{ t: 'seerGive', uids: shuffle(p.hand.map(c => c.uid)).slice(0, P.targets.length) }];
@@ -71,7 +81,7 @@ const pct = (a, b) => (b ? ((100 * a) / b).toFixed(0) + '%' : '—');
 const standing = (s, p) => score(s, p).total + p.gold * 0.5;
 
 function play({ n, chars, goal, levels, monkeySeat = -1, seedNo }) {
-  let s = createGame({ players: levels.map((l, i) => ({ name: 'P' + i, ai: true })), chars, goal, seed: seedNo, level: 'normal' });
+  let s = createGame({ players: levels.map((l, i) => ({ name: 'P' + i, ai: true })), chars, goal, seed: seedNo, level: 'hard' });
   const lastRob = {}, lastKill = {}, lastPicks = {};
   let steps = 0, twins = 0, monkeyMoves = 0;
   while (s.phase !== 'over') {
@@ -153,7 +163,7 @@ for (let g = 0; g < N; g++) {
   const [, chars] = SETS[g % SETS.length];
   const n = 2 + (g % 6);
   if (chars.length < n * charsPerPlayer(n) + 1) continue;
-  const levels = Array.from({ length: n }, (_, i) => LEVELS[(g + i) % 3]);
+  const levels = Array.from({ length: n }, (_, i) => LEVELS[(g + i) % LEVELS.length]);
   const monkeySeat = g % 4 === 3 ? g % n : -1; // every 4th game has a random-move player
   const r = play({ n, chars, goal: g % 2 ? 7 : 8, levels, monkeySeat, seedNo: 9000 + g });
   games++; twins += r.twins; monkeyMoves += r.monkeyMoves; roundsSum += r.s.round;

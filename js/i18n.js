@@ -1,15 +1,15 @@
 // English + Chinese live in the table below; other languages are one file each in ./lang/ (missing keys
 // fall back to English). t('key', {vars}) — '{name}' placeholders.
-import { CHAR } from './data.js?v=efde9582';
-import ja from './lang/ja.js?v=efde9582';
-import ko from './lang/ko.js?v=efde9582';
-import es from './lang/es.js?v=efde9582';
-import fr from './lang/fr.js?v=efde9582';
-import zhTW from './lang/zh-TW.js?v=efde9582';
-import de from './lang/de.js?v=efde9582';
-import pt from './lang/pt.js?v=efde9582';
-import ru from './lang/ru.js?v=efde9582';
-import it from './lang/it.js?v=efde9582';
+import { CHAR } from './data.js?v=9fea029a';
+import ja from './lang/ja.js?v=9fea029a';
+import ko from './lang/ko.js?v=9fea029a';
+import es from './lang/es.js?v=9fea029a';
+import fr from './lang/fr.js?v=9fea029a';
+import zhTW from './lang/zh-TW.js?v=9fea029a';
+import de from './lang/de.js?v=9fea029a';
+import pt from './lang/pt.js?v=9fea029a';
+import ru from './lang/ru.js?v=9fea029a';
+import it from './lang/it.js?v=9fea029a';
 
 export const EXTRA = { 'zh-TW': zhTW, ja, ko, es, fr, de, pt, ru, it };
 export const LANGS = {
@@ -38,6 +38,21 @@ export function setLang(l) {
 }
 
 const D = {
+  'c.magistrate': ['Magistrate', '裁判官'],
+  'a.magistrate': ['Place three warrants: one signed, two decoys. Confiscate the signed target\'s first paid district and refund their gold.', '放置三张逮捕令：一张签署、两张诱饵。可没收签署目标首座付费建筑，并退还其金币。'],
+  'ui.warrantTitle': ['Assign warrants', '分配逮捕令'],
+  'ui.warrantHint': ['Select three characters. Your first selection gets the signed warrant; the other two are decoys. Tap a selected character to remove it.', '选择三个角色。首选获得签署令，其余两个为诱饵。再次点击可移除。'],
+  'ui.signedWarrant': ['Signed warrant', '签署令'],
+  'ui.unsignedWarrant': ['Unsigned warrant', '未签署令'],
+  'ui.warrant': ['Warrant', '逮捕令'],
+  'ui.warrantReview': ['Review construction', '审查建造'],
+  'ui.warrantCanTake': ['You may confiscate this district. The builder gets back the gold paid. Declining ends your chance for this character this turn.', '你可以没收此建筑并退还建造者支付的金币。放弃后，本回合不能再没收该角色的建筑。'],
+  'ui.warrantCannotTake': ['This is a decoy warrant or a district you already own. Allow construction to continue.', '此为诱饵令，或你已有同名建筑。请允许继续建造。'],
+  'ui.allowBuild': ['Allow construction', '允许建造'],
+  'ui.confiscate': ['Confiscate', '没收'],
+  'ui.waitingWarrant': ['Waiting for {name} to review construction…', '等待{name}审查建造……'],
+  'l.warrants': ['{name} places warrants on {chars}.', '{name}对{chars}放置了逮捕令。'],
+  'l.confiscate': ['{name} confiscates {dist} from {target}, refunding {n} gold.', '{name}没收了{target}的{dist}，退还{n}金。'],
   // characters
   'c.assassin': ['Assassin', '刺客'], 'c.thief': ['Thief', '盗贼'], 'c.magician': ['Magician', '魔术师'],
   'c.king': ['King', '国王'], 'c.bishop': ['Bishop', '主教'], 'c.merchant': ['Merchant', '商人'],
@@ -263,7 +278,7 @@ const D = {
   'lb.lang': ['Language', '语言'],
   'lb.defaultName': ['Wanderer', '旅人'],
   'lb.level': ['AI difficulty', 'AI 难度'],
-  'lb.lvl.easy': ['Easy', '简单'], 'lb.lvl.normal': ['Normal', '普通'], 'lb.lvl.hard': ['Cunning', '狡诈'],
+  'lb.lvl.hard': ['Cunning', '狡诈'],
   'lb.timer': ['Turn timer', '回合限时'], 'lb.off': ['Off', '关'],
   'lb.stats': ['{w} wins · {g} games played', '{w} 胜 · 共 {g} 局'],
   'lb.music': ['Music', '音乐'],
@@ -339,8 +354,6 @@ const D = {
   'lb.presetDesc.expanded': ['Brings in the Wizard, Patrician, Abbot and Scholar.', '换入巫师、贵族、修道院长和学者。'],
   'lb.presetDesc.mixed': ['Newer characters: Seer, Navigator, Trader, Patrician, Abbot.', '新角色组合：先知、航海家、贸易商、贵族、修道院长。'],
   'lb.presetDesc.custom': ['Pick one character for each rank.', '为每个等级挑选一个角色。'],
-  'lb.lvlDesc.easy': ['Plays loosely and makes mistakes. Good for learning.', '出牌随意、常犯错，适合熟悉规则。'],
-  'lb.lvlDesc.normal': ['Solid play: reads the table and goes after the leader.', '稳健：会观察局势，专门针对领先者。'],
   'lb.lvlDesc.hard': ['Deduces who holds what and looks ahead before key moves.', '会推断谁拿了什么角色，关键时刻提前推演。'],
   'dr.after': ['{n} still to choose after you', '你之后还有 {n} 人挑选'],
   'dr.last': ['You choose last', '你最后一个挑选'],

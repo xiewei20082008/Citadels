@@ -1,6 +1,7 @@
 // Hand-drawn line emblems (48×48, stroke = currentColor). Used in the HUD and baked into 3D tokens.
 
 const C = {
+  magistrate: '<path d="M13 5h22v34H13z"/><path d="M18 13h12M18 19h12M18 25h7"/><circle cx="29" cy="34" r="6"/><path d="M26 39l-2 6 5-2 4 2-1-6"/>',
   assassin: '<path d="M24 4l4 21h-8z"/><path d="M14 27h20"/><path d="M24 27v11"/><circle cx="24" cy="41" r="2.6"/>',
   thief: '<path d="M5 20c6-5 13-5 19 0 6-5 13-5 19 0 0 8-5 12-10 12-4 0-6-3-9-5-3 2-5 5-9 5-5 0-10-4-10-12z"/><ellipse cx="15" cy="22.5" rx="3.5" ry="2"/><ellipse cx="33" cy="22.5" rx="3.5" ry="2"/>',
   magician: '<path d="M9 39l22-22"/><path d="M35 5l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/><path d="M14 10v4M12 12h4M40 30v4M38 32h4"/>',

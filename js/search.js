@@ -1,12 +1,12 @@
 // Lookahead for the "cunning" AI: determinized Monte-Carlo search.
 // For a decision, sample hidden information consistent with what this player knows (opponents'
-// hands, unrevealed characters, the deck), play the rest of the round out with the normal AI for
+// hands, unrevealed characters, the deck), play the rest of the round out with the Cunning heuristic policy for
 // everyone, and keep the option that leaves us furthest ahead. Common random numbers: each
 // sample is shared by all options, so they're compared on identical "worlds".
 
-import { act, actInPlace, currentActor, draftOptions, score } from './engine.js?v=efde9582';
-import { aiAction, safeAction, holdProbs } from './ai.js?v=efde9582';
-import { makeDeck } from './data.js?v=efde9582';
+import { act, actInPlace, currentActor, draftOptions, score, viewFor } from './engine.js?v=9fea029a';
+import { aiAction, safeAction, holdProbs } from './ai.js?v=9fea029a';
+import { makeDeck } from './data.js?v=9fea029a';
 
 const ALL = makeDeck();
 const SOFT = 0.35; // softmax temperature (points): near-ties vary, clear wins don't. 0.6 cost ~4% win rate.
@@ -25,15 +25,24 @@ function weightedTake(items, weight) { // remove and return one item, chosen by 
 // A full, playable state consistent with player `me`'s view.
 export function determinize(v, me) {
   const s = structuredClone(v);
+  if (s.warrants && s.warrants.signed === null) {
+    const targets = s.warrants.targets;
+    s.warrants.signed = targets[Math.floor(Math.random() * targets.length)];
+  }
   s.seed = (Math.random() * 2 ** 31) | 0;
-  s.cfg.level = 'normal';
   const known = new Set();
   const mark = cards => cards.forEach(c => !c.hidden && known.add(c.uid));
   s.players.forEach(p => { mark(p.city); if (p.id === me) mark(p.hand); });
   if (s.turn?.pending?.cards) mark(s.turn.pending.cards);
   if (s.interrupt) known.add(s.interrupt.card.uid);
   const pool = shuffle(ALL.filter(c => !known.has(c.uid)).map(c => ({ ...c })));
-  for (const p of s.players) if (p.id !== me) p.hand = pool.splice(0, p.handCount);
+  for (const p of s.players) if (p.id !== me) {
+    // A Wizard peek is a copy of the target's hand, not a separate card zone.
+    // Keep those known cards in that hand so wizTake remains playable.
+    const seen = s.turn?.pending?.k === 'wizard' && s.turn.pending.target === p.id
+      ? s.turn.pending.cards || [] : [];
+    p.hand = [...structuredClone(seen), ...pool.splice(0, Math.max(0, p.handCount - seen.length))];
+  }
   s.deck = pool.slice(0, Math.max(0, v.deckCount));
 
   // characters
@@ -53,7 +62,7 @@ export function determinize(v, me) {
     // whatever's left is face down — including a face-down card we're allowed to take (7 players)
     d.faceDown = [...(d.options || []).filter(c => !d.avail.includes(c)), ...missing];
   } else if (s.phase === 'turns') {
-    const probs = holdProbs(v, mine, 'hard');
+    const probs = holdProbs(v, mine);
     const open = [...probs.keys()];
     for (const p of shuffle(s.players.filter(q => q.id !== me))) {
       const need = (p.charCount ?? p.chars.length) - p.chars.length;
@@ -66,8 +75,8 @@ export function determinize(v, me) {
   return s;
 }
 
-// Fast rollout: the sampled world is already a private copy, so mutate it in place and let the
-// policy read it directly (it's a guess anyway; nothing real is revealed).
+// Mutate the sampled world in place, but give each policy its own permitted view.
+// In particular, simulated opponents cannot see the signed warrant.
 function playOutRound(s) {
   const round = s.round;
   for (let k = 0; k < 400 && s.phase !== 'over' && s.round === round; k++) {
@@ -76,9 +85,11 @@ function playOutRound(s) {
     s.deckCount = s.deck.length;
     if (s.phase === 'draft') s.draft.options = draftOptions(s);
     let a = null;
-    try { a = aiAction(s, pid); } catch { /* fall back below */ }
+    const policyView = viewFor(s, pid);
+    if (s.phase === 'draft') policyView.draft.options = draftOptions(s);
+    try { a = aiAction(policyView, pid, { lookahead: false }); } catch { /* fall back below */ }
     let r = a ? actInPlace(s, pid, a) : { error: 1 };
-    if (r.error) { r = actInPlace(s, pid, safeAction(s, pid)); if (r.error) break; }
+    if (r.error) { r = actInPlace(s, pid, safeAction(policyView, pid)); if (r.error) break; }
   }
   return s;
 }

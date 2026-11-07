@@ -1,17 +1,17 @@
 // App controller: owns the authoritative state (solo/host), the AI driver, event playback,
 // persistence, turn timer, emotes, stats and the host/peer plumbing. UI, lobby and scene are views.
 
-import { createScene } from './scene.js?v=efde9582';
-import { renderThumbs } from './models.js?v=efde9582';
-import { createUI, EMOTES } from './ui.js?v=efde9582';
-import { createLobby } from './lobby.js?v=efde9582';
-import { createGame, act, viewFor, currentActor, VERSION } from './engine.js?v=efde9582';
-import { aiAction, safeAction } from './ai.js?v=efde9582';
-import { DIST_IDS, AI_NAMES, AVATARS, PRESETS } from './data.js?v=efde9582';
-import { t, getLang, setLang } from './i18n.js?v=efde9582';
-import * as net from './net.js?v=efde9582';
-import { initSettings, openSettings, closeSettings } from './settings.js?v=efde9582';
-import { startTutorial, stopTutorial, tutorialActive } from './tutorial.js?v=efde9582';
+import { createScene } from './scene.js?v=9fea029a';
+import { renderThumbs } from './models.js?v=9fea029a';
+import { createUI, EMOTES } from './ui.js?v=9fea029a';
+import { createLobby } from './lobby.js?v=9fea029a';
+import { createGame, act, viewFor, currentActor, VERSION } from './engine.js?v=9fea029a';
+import { aiAction, safeAction } from './ai.js?v=9fea029a';
+import { DIST_IDS, AI_NAMES, AVATARS, PRESETS } from './data.js?v=9fea029a';
+import { t, getLang, setLang } from './i18n.js?v=9fea029a';
+import * as net from './net.js?v=9fea029a';
+import { initSettings, openSettings, closeSettings } from './settings.js?v=9fea029a';
+import { startTutorial, stopTutorial, tutorialActive } from './tutorial.js?v=9fea029a';
 
 const SPEED = { slow: 1.45, normal: 1, fast: 0.5 };
 const store = {
@@ -54,8 +54,8 @@ const lobby = createLobby({
   getSpeed: () => G.speed, setSpeed, relang, openSettings,
   canContinue, cont, stats: () => store.get('c3d.stats'),
   startSolo, createRoom, addAI, removeSeat, startHost, joinRoom,
-  // the guided first game: easy opponents, the classic eight, a fixed deal that teaches well
-  startTutorial: o => { startTutorial(); startSolo({ ...o, opp: 3, chars: PRESETS.classic, goal: 8, level: 'easy', seed: 2026 }); },
+  // the guided first game: Cunning opponents, the classic eight, a fixed deal that teaches well
+  startTutorial: o => { startTutorial(); startSolo({ ...o, opp: 3, chars: PRESETS.classic, goal: 8, level: 'hard', seed: 2026 }); },
   cancelNet: () => { closeRoom(); closeLink(); },
 });
 
@@ -147,11 +147,11 @@ function dispatch(a) {
   setState(n);
 }
 
-// The advisor: what a sensible (normal) AI would do in my seat, from my own view only.
+// The advisor uses the Cunning AI, from my own view only.
 function hint() {
   const v = G.view;
   if (!v || v.phase === 'over' || currentActor(v) !== G.me) return null;
-  try { return aiAction({ ...v, cfg: { ...v.cfg, level: 'normal' } }, G.me); } catch { return null; }
+  try { return aiAction(v, G.me); } catch { return null; }
 }
 
 // ── turn timer (host option): an idle human's decision is made by the advisor ──

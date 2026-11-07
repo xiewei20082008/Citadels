@@ -2,10 +2,10 @@
 // act(state, pid, action) returns a NEW state, or {error} when the move is illegal.
 // Humans, AI and network peers all go through act(), so they play by identical rules.
 
-import { CHAR, COLORS, makeDeck } from './data.js?v=efde9582';
+import { CHAR, COLORS, makeDeck } from './data.js?v=9fea029a';
 
 const MAX_EV = 120;
-export const VERSION = 2; // bump when saved states become incompatible
+export const VERSION = 3; // Magistrate warrants and suspended constructions
 const MAX_ROUNDS = 40; // ponytail: hard stop for degenerate games (empty deck + empty hands)
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ export function createGame(cfg) {
 
   const s = {
     v: VERSION, seed: cfg.seed ?? (Math.random() * 2 ** 31) | 0,
-    cfg: { chars: [...cfg.chars], goal: cfg.goal || 8, level: cfg.level || 'normal' },
+    cfg: { chars: [...cfg.chars], goal: cfg.goal || 8, level: 'hard' },
     players: cfg.players.map((p, i) => ({
       id: i, name: p.name, ai: !!p.ai, avatar: p.avatar || '',
       gold: 2, hand: [], city: [], chars: [], lastRank: 0, saw: [],
@@ -78,6 +78,7 @@ export function createGame(cfg) {
     deck: [], round: 0, phase: 'draft', crown: 0,
     draft: null, call: 0, turn: null, killed: null, robbed: null, robber: null, revealed: [], interrupt: null,
     firstComplete: null, scores: null, winner: null, ev: [], evSeq: 0,
+    warrants: null, constructionSeq: 0,
   };
   s.deck = shuffle(s, makeDeck());
   s.players.forEach(p => { p.hand = draw(s, 4); });
@@ -89,6 +90,7 @@ export function createGame(cfg) {
 
 function startRound(s) {
   s.round++;
+  s.warrants = null;
   s.phase = 'draft';
   s.turn = null; s.call = 0; s.killed = null; s.robbed = null; s.robber = null; s.revealed = [];
   s.players.forEach(p => { p.chars = []; p.saw = []; p.lastRank = 0; });
@@ -147,7 +149,7 @@ function gain(s, p, n, why) {
 
 function beginTurn(s, p, charId) {
   const rank = rankOf(charId);
-  s.turn = { pid: p.id, charId, rank, income: false, built: 0, max: buildLimit(charId), used: {}, pending: null };
+  s.turn = { pid: p.id, charId, rank, income: false, built: 0, paidBuild: false, max: buildLimit(charId), used: {}, pending: null };
   emit(s, 'call', { rank, charId, pid: p.id });
 
   if (s.robbed === rank && s.robber !== p.id && p.gold > 0) {
@@ -195,6 +197,26 @@ function place(s, p, card) {
   p.city.push(card);
   emit(s, 'build', { pid: p.id, card });
   checkComplete(s, p);
+}
+
+// All supported construction actions pay a cost, including card-only Thieves' Den.
+// A future explicit cost-waiver must pass paid=false, independently of goldPaid.
+function construct(s, builder, card, goldPaid, paid = true) {
+  const first = paid && !s.turn.paidBuild;
+  if (paid) s.turn.paidBuild = true;
+  const w = s.warrants;
+  if (first && w?.targets.includes(s.turn.charId)) {
+    // Ask for every marked first build, including decoys and duplicates. The
+    // existence of a response must not identify the signed warrant to peers.
+    s.interrupt = { k: 'warrant', pid: w.pid, builder: builder.id, card,
+      goldPaid, id: ++s.constructionSeq, round: s.round };
+  } else place(s, builder, card);
+}
+
+export function canConfiscate(s) {
+  const i = s.interrupt, w = s.warrants;
+  return !!(i?.k === 'warrant' && w && w.pid === i.pid &&
+    w.signed === s.turn?.charId && !has(s.players[i.pid], i.card.id));
 }
 
 function endRound(s) {
@@ -268,8 +290,22 @@ function actInner(state, pid, a, inPlace = false) {
   const p = s.players[pid];
   if (!p) return fail('no player');
 
-  if (s.interrupt) { // someone else's decision pauses the turn (Graveyard)
+  if (s.interrupt) { // someone else's decision pauses the active character
     const I = s.interrupt;
+    if (I.k === 'warrant') {
+      if (I.pid !== pid || a.t !== 'warrantResponse') return fail('waiting for warrant response');
+      if (a.id !== I.id || a.round !== I.round || typeof a.take !== 'boolean') return fail('stale or invalid warrant response');
+      if (a.take && !canConfiscate(s)) return fail('cannot confiscate');
+      s.interrupt = null;
+      const builder = s.players[I.builder];
+      if (a.take) {
+        builder.gold += I.goldPaid;
+        s.warrants.revealed = true;
+        emit(s, 'confiscate', { pid, target: builder.id, card: I.card, refund: I.goldPaid });
+        place(s, p, I.card);
+      } else place(s, builder, I.card);
+      return s;
+    }
     if (I.pid !== pid || a.t !== 'graveyard') return fail('waiting for ' + s.players[I.pid].name);
     s.interrupt = null;
     if (a.take && p.gold >= 1) { p.gold--; p.hand.push(I.card); emit(s, 'graveyard', { pid, card: I.card }); }
@@ -314,6 +350,16 @@ function actInner(state, pid, a, inPlace = false) {
   let err;
 
   switch (a.t) {
+    case 'warrants': {
+      if ((err = ability(17))) return fail(err);
+      const targets = a.targets;
+      if (!Array.isArray(targets) || targets.length !== 3 || new Set(targets).size !== 3 ||
+        ![...targets].every(c => Number.isInteger(c) && s.cfg.chars.includes(c)) || !targets.includes(a.signed)) return fail('bad warrants');
+      T.used.ability = true;
+      s.warrants = { pid, targets: [...targets].sort((a, b) => a - b), signed: a.signed, revealed: false };
+      emit(s, 'warrants', { pid, targets: s.warrants.targets });
+      return s;
+    }
     case 'gold':
       if ((err = needFree()) || (T.income && (err = 'income taken'))) return fail(err);
       T.income = true;
@@ -362,7 +408,7 @@ function actInner(state, pid, a, inPlace = false) {
       s.deck.push(...pay.map(takeFromHand));
       p.gold -= goldDue;
       if (counts) T.built++;
-      place(s, p, card);
+      construct(s, p, card, goldDue);
       return s;
     }
 
@@ -431,11 +477,13 @@ function actInner(state, pid, a, inPlace = false) {
       if (!pend || pend.k !== 'wizard') return fail('not peeking');
       const o = s.players[pend.target], card = o.hand.find(c => c.uid === a.uid);
       if (!card) return fail('bad card');
-      if (a.build && (!canPlace(p, card) || buildCost(p, card) > p.gold)) return fail('cannot build');
+      // The Wizard's direct build permits duplicates; that permission belongs
+      // to the builder, never to a Magistrate who confiscates the district.
+      if (a.build && buildCost(p, card) > p.gold) return fail('cannot build');
       o.hand = o.hand.filter(c => c.uid !== card.uid);
       T.pending = null;
       emit(s, 'wizTake', { pid, target: o.id });
-      if (a.build) { p.gold -= buildCost(p, card); place(s, p, card); } // free build: doesn't count toward limit
+      if (a.build) { const cost = buildCost(p, card); p.gold -= cost; construct(s, p, card, cost); } // paid bonus build, exempt from limit
       else p.hand.push(card);
       return s;
     }
@@ -541,5 +589,6 @@ export function viewFor(s, pid) {
     else v.draft.options = draftOptions(s);
   }
   if (v.turn?.pending && v.turn.pid !== pid) v.turn.pending = { k: v.turn.pending.k };
+  if (v.warrants && v.warrants.pid !== pid && !v.warrants.revealed && !over) v.warrants.signed = null;
   return v;
 }

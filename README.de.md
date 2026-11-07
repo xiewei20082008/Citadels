@@ -12,7 +12,7 @@ Nichts herunterladen, nichts installieren: Es läuft in jedem Browser auf Comput
 
 ## So wird gespielt
 
-**Gegen den Computer:** Tippe auf **Gegen die KI**, wähle die Zahl der Gegner (1–6) und die Stärke und leg los.
+**Gegen den Computer:** Tippe auf **Gegen die KI**, wähle die Zahl der Gegner (1–6) und leg los.
 
 **Online mit Freunden**
 1. Tippe auf **Raum erstellen**, um einen 6-stelligen Raumcode zu bekommen.
@@ -24,7 +24,7 @@ Neu bei Ohne Furcht und Adel? Auf dem Startbildschirm findest du die **Spielrege
 ## Highlights
 
 - **2–7 Spieler**, allein oder online.
-- **Drei KI-Stufen:** Leicht, Normal und Gerissen. Die KI weiß nur, was sie wissen darf – sie sieht nie deine Hand oder verdeckte Figuren.
+- **Gerissene KI.** Die KI weiß nur, was sie wissen darf – sie sieht nie deine Hand oder verdeckte Figuren.
 - **11 Sprachen:** English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Português, Русский und Italiano – jederzeit in ⚙️ Einstellungen umschaltbar.
 - **Einstellungen (⚙️):** vier generierte Musikstücke (Kerzenschein, Mondgarten, Neon-Zitadelle, Tavernennacht) mit Lautstärke, KI-Tempo, Rückfrage vor dem Zugende, wenn noch gebaut werden kann, Zug-Hinweise (blinkender Tab-Titel, Vibration), reduzierte Bewegung und Farbsymbole auf Karten für Farbenblinde.
 - **Spielend lernen:** eine geführte erste Partie, ein Rundenverlauf mit allem, was jeder getan hat (Rundenanzeige antippen), jede Wahl in Zahlen erklärt („+2 Gold, nimmt die Krone“) und eine Schlussbilanz mit Höhepunkten.
@@ -44,7 +44,7 @@ Tests:
 ```bash
 node test/engine.test.mjs     # Regelprüfung + jede Sprache enthält alle Texte
 node test/pressure.mjs 600    # Belastungstest: Fairness (KI sieht keine verdeckten Infos), Zufallszüge, KI-Verhaltensstatistik
-node test/ai-duel.mjs 400     # Siegquote Gerissen gegen Normal
+node test/ai-duel.mjs 400
 ```
 
 | Datei | Aufgabe |

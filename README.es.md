@@ -12,7 +12,7 @@ No hay nada que descargar ni instalar: funciona en cualquier navegador de ordena
 
 ## Cómo jugar
 
-**Contra el ordenador:** pulsa **Jugar contra la IA**, elige cuántos rivales (1–6) y la dificultad, y empieza.
+**Contra el ordenador:** pulsa **Jugar contra la IA**, elige cuántos rivales (1–6), y empieza.
 
 **En línea con amigos**
 1. Pulsa **Crear sala** para obtener un código de sala de 6 caracteres.
@@ -24,7 +24,7 @@ No hay nada que descargar ni instalar: funciona en cualquier navegador de ordena
 ## Características
 
 - **De 2 a 7 jugadores**, solo o en línea.
-- **Tres niveles de IA:** Fácil, Normal y Astuta. La IA solo sabe lo que le corresponde: nunca ve tu mano ni los personajes ocultos.
+- **IA Astuta.** La IA solo sabe lo que le corresponde: nunca ve tu mano ni los personajes ocultos.
 - **11 idiomas:** English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Português, Русский e Italiano. Cámbialo cuando quieras en ⚙️ Ajustes.
 - **Ajustes (⚙️):** cuatro pistas de música generadas (Luz de velas, Jardín lunar, Ciudadela neón, Noche de taberna) con volumen, velocidad de la IA, confirmación antes de terminar un turno en el que aún puedes construir, avisos de turno (título parpadeante, vibración), reducir movimiento y símbolos de color en las cartas para daltónicos.
 - **Aprende jugando:** una primera partida guiada, un resumen ronda a ronda de lo que hizo cada uno (toca el contador de rondas), cada elección explicada con números («+2 de oro, se queda la Corona») y un resumen final con momentos destacados.
@@ -44,7 +44,7 @@ Pruebas:
 ```bash
 node test/engine.test.mjs     # autocomprobación de las reglas + todos los idiomas tienen todos los textos
 node test/pressure.mjs 600    # prueba de estrés: equidad (la IA no ve información oculta), jugadas aleatorias, estadísticas de la IA
-node test/ai-duel.mjs 400     # porcentaje de victorias de Astuta contra Normal
+node test/ai-duel.mjs 400
 ```
 
 | Archivo | Función |

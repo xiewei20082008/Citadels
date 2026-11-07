@@ -852,3 +852,8 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
 
 .set-wrap .sheet-drawer { top: 136px; }
 @media (max-width: 760px) { .set-wrap .sheet-drawer { top: 160px; } }
+/* Magistrate: compact assignment controls and public warrant markers. */
+.warrant-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.warrant-choices .btn { white-space: normal; min-width: 0; padding: 8px; font-size: 12px; }
+.warrant-mark { position: absolute; right: 1px; top: 1px; color: #d9b267; font-size: 12px; line-height: 1; }
+.warrant-mark.signed { color: #fff1be; }

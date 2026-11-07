@@ -12,7 +12,7 @@ Rien à télécharger ni à installer : le jeu fonctionne dans n'importe quel na
 
 ## Comment jouer
 
-**Contre l'ordinateur :** touchez **Jouer contre l'IA**, choisissez le nombre d'adversaires (1 à 6) et la difficulté, puis commencez.
+**Contre l'ordinateur :** touchez **Jouer contre l'IA**, choisissez le nombre d'adversaires (1 à 6), puis commencez.
 
 **En ligne avec des amis**
 1. Touchez **Créer un salon** pour obtenir un code de salon à 6 caractères.
@@ -24,7 +24,7 @@ Première partie ? L'écran d'accueil propose **Règles du jeu**, et en cours de
 ## Points forts
 
 - **De 2 à 7 joueurs**, en solo ou en ligne.
-- **Trois niveaux d'IA :** Facile, Normale et Rusée. L'IA ne sait que ce qu'elle a le droit de savoir : elle ne voit jamais votre main ni les personnages cachés.
+- **IA Rusée.** L'IA ne sait que ce qu'elle a le droit de savoir : elle ne voit jamais votre main ni les personnages cachés.
 - **11 langues :** English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Português, Русский et Italiano, à changer à tout moment dans ⚙️ Réglages.
 - **Réglages (⚙️) :** quatre musiques générées (Chandelles, Jardin lunaire, Citadelle néon, Soir de taverne) avec volume, vitesse de l'IA, confirmation avant de finir un tour où l'on peut encore bâtir, alertes de tour (titre clignotant, vibration), animations réduites et symboles de couleur sur les cartes pour les daltoniens.
 - **Apprendre en jouant :** une première partie guidée, le fil de la manche avec ce que chacun a fait (touchez le compteur de manches), chaque choix expliqué en chiffres (« +2 or, prend la Couronne ») et un bilan de fin de partie avec les temps forts.
@@ -44,7 +44,7 @@ Tests :
 ```bash
 node test/engine.test.mjs     # vérification des règles + chaque langue contient tous les textes
 node test/pressure.mjs 600    # test de charge : équité (l'IA ne voit pas les informations cachées), coups aléatoires, statistiques de l'IA
-node test/ai-duel.mjs 400     # taux de victoire de Rusée contre Normale
+node test/ai-duel.mjs 400
 ```
 
 | Fichier | Rôle |

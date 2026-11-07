@@ -1,5 +1,5 @@
 // Run: node test/engine.test.mjs
-// Plays hundreds of all-AI games across player counts, character sets and AI levels, fuzzes the
+// Plays hundreds of all-AI games across player counts, character sets with Cunning AI, fuzzes the
 // action API with garbage, and checks rules + hidden-information invariants.
 import assert from 'node:assert/strict';
 import { createGame, act, viewFor, currentActor, score, charsPerPlayer, shielded } from '../js/engine.js';
@@ -28,8 +28,8 @@ function step(s) {
   return [n, fb];
 }
 
-function play(n, chars, seed, goal, level) {
-  let s = createGame({ players: Array.from({ length: n }, (_, i) => ({ name: 'P' + i, ai: true })), chars, goal, seed, level });
+function play(n, chars, seed, goal) {
+  let s = createGame({ players: Array.from({ length: n }, (_, i) => ({ name: 'P' + i, ai: true })), chars, goal, seed });
   let steps = 0, fallbacks = 0, interrupts = 0;
   while (s.phase !== 'over') {
     assert.ok(++steps < 20000, 'game stalled');
@@ -49,26 +49,25 @@ for (const [name, chars] of Object.entries(PRESETS))
   for (let n = 2; n <= 7; n++)
     for (let seed = 1; seed <= 9; seed++) {
       if (chars.length < n * charsPerPlayer(n) + 1) continue;
-      const level = ['easy', 'normal', 'hard'][seed % 3];
-      const r = play(n, chars, seed * 7919 + n, seed % 2 ? 8 : 7, level);
+      const r = play(n, chars, seed * 7919 + n, seed % 2 ? 8 : 7);
       games++; rounds += r.rounds; fallbacks += r.fallbacks; interrupts += r.interrupts;
       assert.ok(r.rounds < 40, `${name} n=${n} hit round cap`);
     }
 
-// Hard AI should beat easy AI more often than not.
+// Old saved difficulty preferences must always resolve to Cunning.
 {
-  let hardWins = 0;
-  for (let seed = 1; seed <= 60; seed++) {
-    let s = createGame({ players: [{ name: 'H' }, { name: 'E' }, { name: 'E2' }, { name: 'E3' }].map(p => ({ ...p, ai: true })), chars: PRESETS.classic, seed, level: 'normal' });
-    while (s.phase !== 'over') {
-      const pid = currentActor(s);
-      s = { ...s, cfg: { ...s.cfg, level: pid === 0 ? 'hard' : 'easy' } };
-      [s] = step(s);
+  const random = Math.random;
+  try {
+    for (const level of [undefined, 'easy', 'normal', 'hard']) {
+      const s = createGame({ players: [0, 1, 2, 3].map(i => ({ name: 'P' + i, ai: true })), chars: PRESETS.classic, seed: 42, level });
+      assert.equal(s.cfg.level, 'hard');
+      const pid = currentActor(s), v = viewFor(s, pid);
+      Math.random = () => 0.5;
+      const expected = aiAction(v, pid);
+      v.cfg.level = level; // Existing saves may still contain the retired value.
+      assert.deepEqual(aiAction(v, pid), expected);
     }
-    if (s.winner === 0) hardWins++;
-  }
-  assert.ok(hardWins > 20, `hard AI won only ${hardWins}/60 vs three easy AIs`);
-  console.log(`hard vs 3×easy: ${hardWins}/60 wins`);
+  } finally { Math.random = random; }
 }
 
 // Fuzz: garbage and random actions must never throw or corrupt state.

@@ -10,7 +10,7 @@ Citadels 3D: a browser card game (Three.js tabletop, vanilla ES modules, no buil
 node serve.mjs                 # http://localhost:5173 (ES modules need a server; file:// won't work)
 node test/engine.test.mjs      # rules invariants over hundreds of AI games
 node test/pressure.mjs 600     # fairness (hidden info), random-move fuzzing, AI behaviour stats
-node test/ai-duel.mjs 400      # Cunning vs Normal win rate
+node test/ai-duel.mjs 400      # Tuned vs baseline Cunning win rate
 ```
 
 Three.js and PeerJS load from CDNs (importmap in `index.html`), so the first load needs internet.

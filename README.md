@@ -12,7 +12,7 @@ Nothing to download or install: it runs in any desktop or phone browser. On a ph
 
 ## How to play
 
-**Against the computer:** tap **Play vs AI**, choose how many opponents (1–6) and the difficulty, then begin.
+**Against the computer:** tap **Play vs AI**, choose how many opponents (1–6), then begin.
 
 **Online with friends**
 1. Tap **Host online** to get a 6-character room code.
@@ -24,7 +24,7 @@ New to Citadels? The home screen has **How to play**, and during a game the **Hi
 ## Features
 
 - **2–7 players**, solo or online.
-- **Three AI levels:** Easy, Normal and Cunning. The AI only knows what it is allowed to know; it never sees your hand or hidden characters.
+- **Cunning AI:** opponents infer hidden roles and look ahead before key moves. The AI only knows what it is allowed to know; it never sees your hand or hidden characters.
 - **11 languages:** English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Português, Русский and Italiano. Pick one in ⚙️ Settings at any time.
 - **Settings (⚙️):** four generated music tracks (Candlelight, Moonlit Garden, Neon Citadel, Tavern Night) with volume, AI speed, a check before ending a turn with builds left, turn alerts (tab title flash, vibration), reduce motion and colour-blind card symbols.
 - **Learn as you play:** a guided first game, a round-by-round feed of what everyone did (tap the round counter), every choice explained in numbers ("+2 gold, takes the Crown"), and an end-of-game recap with highlights.
@@ -44,7 +44,7 @@ Tests:
 ```bash
 node test/engine.test.mjs     # rules self-check + every language covers every string
 node test/pressure.mjs 600    # pressure test: fairness (AI can't see hidden info), random-move fuzzing, AI behaviour stats
-node test/ai-duel.mjs 400     # Cunning vs Normal AI win rate
+node test/ai-duel.mjs 400     # Tuned vs baseline Cunning AI win rate
 ```
 
 | File | Role |
