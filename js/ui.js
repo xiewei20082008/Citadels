@@ -3,7 +3,7 @@
 
 import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js';
 import {
-  rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit,
+  rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate,
 } from './engine.js';
 import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js';
 import { svg, ROMAN } from './icons.js';
@@ -13,13 +13,13 @@ import { update as tutorialUpdate, tutorialActive } from './tutorial.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ACTIVE = { assassin: 'kill', thief: 'rob', magician: 'mag', warlord: 'war', wizard: 'wiz', seer: 'seer', navigator: 'nav', scholar: 'scholar' };
-const ABILITY_ICON = { kill: 'assassin', rob: 'thief', mag: 'magician', war: 'warlord', wiz: 'wizard', seer: 'seer', nav: 'navigator', scholar: 'scholar' };
-const ABILITY_OF_ACTION = { kill: 'kill', rob: 'rob', swap: 'mag', redraw: 'mag', destroy: 'war', peek: 'wiz', seer: 'seer', nav: 'nav', scholar: 'scholar' };
+const ACTIVE = { magistrate: 'warrants', assassin: 'kill', thief: 'rob', magician: 'mag', warlord: 'war', wizard: 'wiz', seer: 'seer', navigator: 'nav', scholar: 'scholar' };
+const ABILITY_ICON = { warrants: 'magistrate', kill: 'assassin', rob: 'thief', mag: 'magician', war: 'warlord', wiz: 'wizard', seer: 'seer', nav: 'navigator', scholar: 'scholar' };
+const ABILITY_OF_ACTION = { warrants: 'warrants', kill: 'kill', rob: 'rob', swap: 'mag', redraw: 'mag', destroy: 'war', peek: 'wiz', seer: 'seer', nav: 'nav', scholar: 'scholar' };
 // Colour-blind aid (setting): each district colour also gets a symbol.
 const COLOR_SYM = { yellow: 'king', blue: 'bishop', green: 'merchant', red: 'warlord', purple: 'magician' };
-const BLOCKING = ['draft', 'discard', 'keep', 'wizPick', 'seerGive', 'grave', 'over'];
-const TURN_SHEETS = ['kill', 'rob', 'mag', 'war', 'wiz', 'seer', 'nav', 'scholar', 'den', 'lab'];
+const BLOCKING = ['draft', 'discard', 'keep', 'wizPick', 'seerGive', 'grave', 'warrantResponse', 'over'];
+const TURN_SHEETS = ['warrants', 'kill', 'rob', 'mag', 'war', 'wiz', 'seer', 'nav', 'scholar', 'den', 'lab'];
 export const EMOTES = ['👍', '😂', '😮', '😡', '😈', '👑', '🙏', '🎉'];
 const seatHue = pid => SEAT_HUES[pid % SEAT_HUES.length];
 
@@ -163,6 +163,8 @@ export function createUI(ctx) {
       case 'redraw': return t('l.redraw', { name: n(e.pid), n: e.n });
       case 'destroy': return t('l.destroy', { name: n(e.pid), target: n(e.target), dist: dname(e.card) });
       case 'graveyard': return t('l.graveyard', { name: n(e.pid), dist: dname(e.card) });
+      case 'warrants': return t('l.warrants', { name: n(e.pid), chars: e.targets.map(cname).join(', ') });
+      case 'confiscate': return t('l.confiscate', { name: n(e.pid), target: n(e.target), dist: dname(e.card), n: e.refund });
       case 'peek': return t('l.peek', { name: n(e.pid), target: n(e.target) });
       case 'wizTake': return t('l.wizTake', { name: n(e.pid), target: n(e.target) });
       case 'seer': return t('l.seer', { name: n(e.pid), n: e.n });
@@ -273,7 +275,7 @@ export function createUI(ctx) {
       }
       case 'crown': sfx('crown'); toast(txt, 'gold'); return 700;
       case 'complete': sfx('win'); banner(e); toast(`<b>${txt}</b>`, 'gold'); return 2000;
-      case 'swap': case 'wizTake': case 'graveyard': case 'seer': case 'peek': case 'seerGive': case 'redraw': sfx('card', 2); toast(txt); return 700;
+      case 'warrants': case 'confiscate': case 'swap': case 'wizTake': case 'graveyard': case 'seer': case 'peek': case 'seerGive': case 'redraw': sfx('card', 2); toast(txt); return 700;
       case 'over': sfx('win'); return 600;
     }
     return 300;
@@ -317,7 +319,7 @@ export function createUI(ctx) {
     if (decisionKey !== L.decisionKey) { L.decisionKey = decisionKey; L.drawers = []; }
     // a new turn (incl. my second character straight after my first) closes the last turn's tools
     const turnKey = myTurn ? view.round + ':' + T.charId : null, wasWar = L.sheet === 'war';
-    if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
+    if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; L.warrantTargets = []; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
     const draftKey = draftMine ? view.round + ':' + view.draft.idx : null;
     if (draftKey !== L.draftKey) { L.draftKey = draftKey; L.draftSel = null; if (draftKey) alertTurn(); }
     if (myTurn && ABILITY_ICON[L.sheet] && L.sheet !== abilityKey(view)) L.sheet = null; // ability already spent
@@ -349,7 +351,7 @@ export function createUI(ctx) {
 
     // decisions that can't wait open themselves
     const pend = myTurn ? T.pending : null;
-    const auto = view.interrupt?.pid === view.me ? 'grave'
+    const auto = view.interrupt?.pid === view.me ? (view.interrupt.k === 'warrant' ? 'warrantResponse' : 'grave')
       : draftMine ? (view.draft.mustDiscard ? 'discard' : 'draft')
       : pend?.k === 'keep' ? 'keep' : pend?.k === 'wizard' ? 'wizPick' : pend?.k === 'seerGive' ? 'seerGive' : null;
     if (auto && L.sheet !== auto && !L.drawers.some(d => d.sheet === auto)) { L.sheet = auto; L.multi.clear(); }
@@ -385,6 +387,7 @@ export function createUI(ctx) {
       return `<span class="tk ${cls}" style="--cc:${CHAR[shown].color}" data-char="${shown}">
         <span class="tk-emb">${svg(CHAR[shown].key)}</span><span class="tk-r">${ROMAN[r]}</span>
         ${view.killed === r ? `<span class="tk-mark k">${svg('skull')}</span>` : view.robbed === r ? `<span class="tk-mark r">${svg('thief')}</span>` : ''}
+        ${view.warrants?.targets.includes(id) ? `<span class="warrant-mark ${view.warrants.signed === id ? 'signed' : ''}" title="${esc(t(view.warrants.signed === id ? 'ui.signedWarrant' : 'ui.warrant'))}">${view.warrants.signed === id ? '✍' : '◇'}</span>` : ''}
         ${holder ? `<span class="tk-who">${esc(holder.avatar || '·')}</span>` : ''}</span>`;
     }).join('');
   }
@@ -497,7 +500,7 @@ export function createUI(ctx) {
     let s = '';
     const actor = actorOf(view);
     if (view.phase === 'over') s = t('ui.winner', { name: pname(view.winner) });
-    else if (view.interrupt && view.interrupt.pid !== view.me) s = t('ui.waitingGrave', { name: pname(view.interrupt.pid) });
+    else if (view.interrupt && view.interrupt.pid !== view.me) s = t(view.interrupt.k === 'warrant' ? 'ui.waitingWarrant' : 'ui.waitingGrave', { name: pname(view.interrupt.pid) });
     else if (myTurn) {
       const T = view.turn, active = !!ACTIVE[CHAR[T.charId].key];
       const steps = [
@@ -534,6 +537,8 @@ export function createUI(ctx) {
       case 'destroy': return t('h.destroy', { name: realName(a.target), dist: dname(cardIn(v.players[a.target].city, a.uid)) });
       case 'nav': return t(a.choice === 'gold' ? 'h.navg' : 'h.navc');
       case 'graveyard': return t(a.take ? 'h.graveYes' : 'h.graveNo');
+      case 'warrants': return t('ui.warrantTitle');
+      case 'warrantResponse': return t(a.take ? 'ui.confiscate' : 'ui.allowBuild');
     }
     return '';
   }
@@ -545,6 +550,7 @@ export function createUI(ctx) {
     if (a.t === 'build') L.sel = a.uid;
     if (a.t === 'pick' || a.t === 'discard') L.draftSel = a.charId; // preselect: one tap on the button confirms
     if (a.t === 'kill' || a.t === 'rob') L.targetSel = a.rank;
+    if (a.t === 'warrants') L.warrantTargets = [a.signed, ...a.targets.filter(c => c !== a.signed)];
     if (a.t === 'destroy') L.warSel = a.uid;
     render(L.view);
   }
@@ -569,6 +575,7 @@ export function createUI(ctx) {
     if (a.t === 'scholar') sel.push('[data-a="scholarGo"]');
     if (a.t === 'nav') sel.push(`[data-a="nav"][data-v="${a.choice}"]`);
     if (a.t === 'graveyard') sel.push(`[data-a="${a.take ? 'graveYes' : 'graveNo'}"]`);
+    if (a.t === 'warrantResponse') sel.push(`[data-a="warrantReply"][data-v="${a.take ? 'yes' : 'no'}"]`);
     sel.forEach(s => root.querySelectorAll(s).forEach(el => el.classList.add('suggest')));
   }
 
@@ -633,6 +640,18 @@ export function createUI(ctx) {
         { closable: false, foot: `<div class="sh-foot"><button class="btn small ghost hint-btn" data-a="hint">${svg('help')}<span>${t('ui.hint')}</span></button>
           <button class="btn primary" data-a="${go}Go" ${sel ? '' : 'disabled'}>${sel ? t(discarding ? 'dr.discardGo' : 'dr.choose', { char: cname(sel) }) : t('dr.tapCard')}</button></div>` });
       wide = true;
+    } else if (s === 'warrants') {
+      const chosen = L.warrantTargets || [];
+      const opts = [...v.cfg.chars].sort((a, b) => rankOf(a) - rankOf(b));
+      html = sheetFrame(t('ui.warrantTitle'), `<p class="note">${t('ui.warrantHint')}</p>
+        <div class="warrant-choices">${opts.map(id => `<button class="btn ${chosen.includes(id) ? 'primary' : ''}" data-a="warrantPick" data-v="${id}" aria-pressed="${chosen.includes(id)}">${ROMAN[rankOf(id)]} ${esc(cname(id))}${chosen.includes(id) ? ` · ${t(chosen[0] === id ? 'ui.signedWarrant' : 'ui.unsignedWarrant')}` : ''}</button>`).join('')}</div>`,
+        { foot: `<div class="sh-foot"><button class="btn primary" data-a="warrantAssign" ${chosen.length === 3 ? '' : 'disabled'}>${t('ui.confirm')} · ${chosen.length}/3</button></div>` });
+    } else if (s === 'warrantResponse' && v.interrupt?.k === 'warrant') {
+      const i = v.interrupt;
+      html = sheetFrame(t('ui.warrantReview'), `<div class="cards-big">${cardHTML(i.card, { cls: 'big' })}</div>
+        <p class="note">${t(canConfiscate(v) ? 'ui.warrantCanTake' : 'ui.warrantCannotTake')}</p>
+        <div class="sh-foot two"><button class="btn" data-a="warrantReply" data-v="no">${t('ui.allowBuild')}</button>
+        <button class="btn primary" data-a="warrantReply" data-v="yes" ${canConfiscate(v) ? '' : 'disabled'}>${t('ui.confiscate')}</button></div>`, { closable: false });
     } else if (s === 'grave' && v.interrupt) {
       const c = v.interrupt.card;
       html = sheetFrame(t('ui.graveTitle'), `<div class="cards-big">${cardHTML(c, { cls: 'big' })}</div>
@@ -861,6 +880,23 @@ export function createUI(ctx) {
         sfx('click');
         { const id = L.draftSel; L.draftSel = null; return go({ t: a === 'pickGo' ? 'pick' : 'discard', charId: id }); }
       case 'graveYes': return go({ t: 'graveyard', take: true });
+      case 'warrantPick': {
+        const chosen = L.warrantTargets ||= [];
+        const id = +v, idx = chosen.indexOf(id);
+        if (idx >= 0) chosen.splice(idx, 1);
+        else if (chosen.length < 3) chosen.push(id);
+        return renderSheet();
+      }
+      case 'warrantAssign': {
+        const targets = L.warrantTargets || [];
+        if (targets.length !== 3) return;
+        return go({ t: 'warrants', targets: [...targets], signed: targets[0] });
+      }
+      case 'warrantReply': {
+        const i = view.interrupt;
+        if (i?.k !== 'warrant') return;
+        return go({ t: 'warrantResponse', id: i.id, round: i.round, take: v === 'yes' });
+      }
       case 'graveNo': return go({ t: 'graveyard', take: false });
       case 'gold': return go({ t: 'gold' });
       case 'draw': return go({ t: 'draw' });

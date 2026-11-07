@@ -4,7 +4,7 @@
 // everyone, and keep the option that leaves us furthest ahead. Common random numbers: each
 // sample is shared by all options, so they're compared on identical "worlds".
 
-import { act, actInPlace, currentActor, draftOptions, score } from './engine.js';
+import { act, actInPlace, currentActor, draftOptions, score, viewFor } from './engine.js';
 import { aiAction, safeAction, holdProbs } from './ai.js';
 import { makeDeck } from './data.js';
 
@@ -25,6 +25,10 @@ function weightedTake(items, weight) { // remove and return one item, chosen by 
 // A full, playable state consistent with player `me`'s view.
 export function determinize(v, me) {
   const s = structuredClone(v);
+  if (s.warrants && s.warrants.signed === null) {
+    const targets = s.warrants.targets;
+    s.warrants.signed = targets[Math.floor(Math.random() * targets.length)];
+  }
   s.seed = (Math.random() * 2 ** 31) | 0;
   const known = new Set();
   const mark = cards => cards.forEach(c => !c.hidden && known.add(c.uid));
@@ -65,8 +69,8 @@ export function determinize(v, me) {
   return s;
 }
 
-// Fast rollout: the sampled world is already a private copy, so mutate it in place and let the
-// policy read it directly (it's a guess anyway; nothing real is revealed).
+// Mutate the sampled world in place, but give each policy its own permitted view.
+// In particular, simulated opponents cannot see the signed warrant.
 function playOutRound(s) {
   const round = s.round;
   for (let k = 0; k < 400 && s.phase !== 'over' && s.round === round; k++) {
@@ -75,9 +79,11 @@ function playOutRound(s) {
     s.deckCount = s.deck.length;
     if (s.phase === 'draft') s.draft.options = draftOptions(s);
     let a = null;
-    try { a = aiAction(s, pid, { lookahead: false }); } catch { /* fall back below */ }
+    const policyView = viewFor(s, pid);
+    if (s.phase === 'draft') policyView.draft.options = draftOptions(s);
+    try { a = aiAction(policyView, pid, { lookahead: false }); } catch { /* fall back below */ }
     let r = a ? actInPlace(s, pid, a) : { error: 1 };
-    if (r.error) { r = actInPlace(s, pid, safeAction(s, pid)); if (r.error) break; }
+    if (r.error) { r = actInPlace(s, pid, safeAction(policyView, pid)); if (r.error) break; }
   }
   return s;
 }

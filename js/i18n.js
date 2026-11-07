@@ -38,6 +38,21 @@ export function setLang(l) {
 }
 
 const D = {
+  'c.magistrate': ['Magistrate', '裁判官'],
+  'a.magistrate': ['Place three warrants: one signed, two decoys. Confiscate the signed target\'s first paid district and refund their gold.', '放置三张逮捕令：一张签署、两张诱饵。可没收签署目标首座付费建筑，并退还其金币。'],
+  'ui.warrantTitle': ['Assign warrants', '分配逮捕令'],
+  'ui.warrantHint': ['Select three characters. Your first selection gets the signed warrant; the other two are decoys. Tap a selected character to remove it.', '选择三个角色。首选获得签署令，其余两个为诱饵。再次点击可移除。'],
+  'ui.signedWarrant': ['Signed warrant', '签署令'],
+  'ui.unsignedWarrant': ['Unsigned warrant', '未签署令'],
+  'ui.warrant': ['Warrant', '逮捕令'],
+  'ui.warrantReview': ['Review construction', '审查建造'],
+  'ui.warrantCanTake': ['You may confiscate this district. The builder gets back the gold paid. Declining ends your chance for this character this turn.', '你可以没收此建筑并退还建造者支付的金币。放弃后，本回合不能再没收该角色的建筑。'],
+  'ui.warrantCannotTake': ['This is a decoy warrant or a district you already own. Allow construction to continue.', '此为诱饵令，或你已有同名建筑。请允许继续建造。'],
+  'ui.allowBuild': ['Allow construction', '允许建造'],
+  'ui.confiscate': ['Confiscate', '没收'],
+  'ui.waitingWarrant': ['Waiting for {name} to review construction…', '等待{name}审查建造……'],
+  'l.warrants': ['{name} places warrants on {chars}.', '{name}对{chars}放置了逮捕令。'],
+  'l.confiscate': ['{name} confiscates {dist} from {target}, refunding {n} gold.', '{name}没收了{target}的{dist}，退还{n}金。'],
   // characters
   'c.assassin': ['Assassin', '刺客'], 'c.thief': ['Thief', '盗贼'], 'c.magician': ['Magician', '魔术师'],
   'c.king': ['King', '国王'], 'c.bishop': ['Bishop', '主教'], 'c.merchant': ['Merchant', '商人'],

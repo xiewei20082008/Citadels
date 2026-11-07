@@ -12,12 +12,14 @@
 import { CHAR, COLORS } from './data.js';
 import {
   rankOf, has, colorCount, buildCost, canPlace, destroyCost, shielded,
-  targetRanks, countsTowardLimit, score,
+  targetRanks, countsTowardLimit, score, canConfiscate,
 } from './engine.js';
 import { search } from './search.js';
 
 // Lookahead budget for the cunning AI (rollouts per decision); tests may turn it off.
 export const SEARCH = { on: true, budget: 120 };
+// Injectable AI randomness; never use or expose the private engine seed.
+export const WARRANT_RANDOM = { next: () => Math.random() };
 
 const TEMP = 0.25;
 // Tunables, overridable for A/B tests (test/ai-duel.mjs).
@@ -65,6 +67,7 @@ function turnValue(v, p, charId) {
   const canBuild = Math.min(gold + 2 + income, 6) * (handN > 0 ? 0.55 : 0.2);
   let v0 = 2 + income + canBuild;
   switch (key) {
+    case 'magistrate': v0 += 2.5 + (opps.some(q => q.gold >= 4) ? 1 : 0); break;
     case 'assassin': v0 += 1.8 + (Math.max(...opps.map(q => q.city.length)) >= goal - 2 ? 2 : 0); break;
     case 'thief': v0 += Math.max(0, ...opps.map(q => q.gold)) * 0.45; break;
     case 'magician': v0 += handN <= 1 ? Math.max(0, ...opps.map(q => (q.handCount ?? q.hand.length))) * 0.7 : 0.8; break;
@@ -168,12 +171,22 @@ function bestBuild(v, me) {
   if (!options.length) return null;
   const have = new Set(me.city.map(d => d.color));
   const finalRound = v.firstComplete !== null;
+  const w = v.warrants;
+  const warned = w && !T.paidBuild && w.targets.includes(T.charId);
+  const warrantRisk = !warned || w.pid === me.id ? 0 : w.signed !== null ? (w.signed === T.charId ? 1 : 0) : 1 / 3;
   const util = c => {
     let u = c.cost + (c.color === 'purple' ? 0.8 : 0);
     if (!have.has(c.color) && have.size < 5) u += (have.size >= 3 ? 2.5 : 1.2) * TUNE.colorChase; // chase the five-colour bonus
     if (['dragon_gate', 'university'].includes(c.id)) u += 2;
     if (c.id === 'thieves_den' && buildCost(me, c) > me.gold) u -= 2;
     if (finalRound) u += c.cost; // last chance: points now
+    if (warrantRisk && !has(v.players[w.pid], c.id)) {
+      u -= warrantRisk * (u + 1);
+      // Prefer an affordable cheap opening only when a second build remains
+      // possible even if the Magistrate declines and no refund arrives.
+      if (T.max - T.built > 1 && options.some(d => d !== c && buildCost(me, d) + buildCost(me, c) <= me.gold))
+        u += warrantRisk * (7 - buildCost(me, c));
+    }
     return u;
   };
   const pick = best(options, util);
@@ -217,6 +230,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
   const me = v.players[pid];
 
   if (v.interrupt) { // Graveyard: buy the ruin back?
+    if (v.interrupt.k === 'warrant') return warrantResponse(v, me);
     const c = v.interrupt.card;
     return { t: 'graveyard', take: me.gold >= 1 && canPlace(me, c) && (c.cost >= 3 || me.gold >= 3) };
   }
@@ -252,6 +266,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
 
   if (!T.used.ability) {
     const key = CHAR[T.charId].key;
+    if (key === 'magistrate') return assignWarrants(v, me);
     if (key === 'assassin') {
       const ranks = targetRanks(v, [1]).filter(r => !myRanks.includes(r));
       if (ranks.length && lookahead && SEARCH.on) return search(v, pid, ranks.map(rank => ({ t: 'kill', rank })), SEARCH.budget);
@@ -312,6 +327,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
 
 // Fallback when an AI choice turns out illegal: always make progress.
 export function safeAction(v, pid) {
+  if (v.interrupt?.k === 'warrant') return { t: 'warrantResponse', id: v.interrupt.id, round: v.interrupt.round, take: false };
   if (v.interrupt) return { t: 'graveyard', take: false };
   if (v.phase === 'draft') return { t: v.draft.mustDiscard ? 'discard' : 'pick', charId: v.draft.options[0] };
   const P = v.turn.pending, me = v.players[pid];
@@ -319,4 +335,50 @@ export function safeAction(v, pid) {
   if (P?.k === 'wizard') return { t: 'wizTake', uid: P.cards[0].uid };
   if (P?.k === 'seerGive') return { t: 'seerGive', uids: me.hand.slice(0, P.targets.length).map(c => c.uid) };
   return v.turn.income ? { t: 'end' } : { t: 'gold' };
+}
+
+function assignWarrants(v, me) {
+  const probs = holdProbs(v, me);
+  const ranked = v.cfg.chars.map(charId => {
+    let value = 0;
+    if (rankOf(charId) > v.call) {
+      const holders = me.chars.includes(charId) ? new Map([[me.id, 1]]) : probs.get(charId) || new Map();
+      for (const [pid, chance] of holders) {
+        const p = v.players[pid], c = CHAR[charId];
+        if (c.key === 'navigator') continue;
+        const income = c.income ? colorCount(p, c.income) + (c.key === 'merchant' ? 1 : 0) : 0;
+        const gold = p.gold + 2 + income;
+        const draws = ['architect', 'scholar', 'wizard', 'seer', 'patrician'].includes(c.key);
+        const hand = p.handCount ?? p.hand.length;
+        const buildingChance = Math.min(0.95, (hand || draws ? 0.65 + hand * 0.06 : 0.15) + (p.city.length >= v.cfg.goal - 2 ? 0.08 : 0));
+        const expected = Math.max(1, Math.min(5, gold, 2 + hand * 0.4));
+        const duplicateRisk = Math.min(0.6, me.city.length * 0.04);
+        value += chance * buildingChance * expected * (1 - duplicateRisk);
+      }
+    }
+    const useful = rankOf(charId) > v.call && !v.draft.faceUp.includes(charId) && CHAR[charId].key !== 'navigator';
+    return { charId, useful, score: value * (0.88 + WARRANT_RANDOM.next() * 0.24) };
+  }).sort((a, b) => b.score - a.score || Number(b.useful) - Number(a.useful) || rankOf(a.charId) - rankOf(b.charId) || a.charId - b.charId);
+  const targets = ranked.slice(0, 3).map(x => x.charId);
+  return { t: 'warrants', targets, signed: targets[0] };
+}
+
+function warrantResponse(v, me) {
+  const i = v.interrupt;
+  let take = canConfiscate(v);
+  if (take) {
+    const card = { ...i.card, round: v.round };
+    const after = { ...me, city: [...me.city, card], gold: me.gold + (i.builder === me.id ? i.goldPaid : 0) };
+    const completion = v.firstComplete === null && after.city.length >= v.cfg.goal;
+    const next = { ...v, firstComplete: completion ? me.id : v.firstComplete };
+    // Taking a second unique district can forfeit Ivory Tower's five points.
+    take = score(next, after).total >= score(v, me).total;
+    if (take && completion) {
+      const rivals = v.players.filter(p => p.id !== me.id);
+      const mine = score(next, after).total;
+      const racing = rivals.some(p => p.city.length >= v.cfg.goal - 1);
+      if (!racing && rivals.some(p => score(next, p).total > mine)) take = false;
+    }
+  }
+  return { t: 'warrantResponse', id: i.id, round: i.round, take };
 }
