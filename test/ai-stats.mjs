@@ -1,12 +1,12 @@
 // Run: node test/ai-stats.mjs [games]
 // Measures AI behaviour so "smart" is a number, not a feeling: targeting accuracy, hoarding,
-// missed builds, repetitive picks and head-to-head win rates between levels.
+// missed builds, repetitive picks and win rates.
 import { createGame, act, viewFor, currentActor, rankOf, score, buildCost, canPlace } from '../js/engine.js';
 import { aiAction, safeAction } from '../js/ai.js';
 import { PRESETS, CHAR } from '../js/data.js';
 
 const N = +process.argv[2] || 300;
-const LEVELS = ['easy', 'normal', 'hard'];
+const LEVELS = ['hard'];
 
 function run(levels, seed, chars = PRESETS.classic, goal = 8) {
   const n = levels.length;
@@ -58,9 +58,9 @@ function run(levels, seed, chars = PRESETS.classic, goal = 8) {
 const agg = {}; LEVELS.forEach(l => { agg[l] = { wins: 0, seats: 0, endGold: 0, k: null }; });
 let rounds = 0, top = 0;
 for (let g = 0; g < N; g++) {
-  // rotate a mixed table so every level sits in every seat
+  // vary player counts with Cunning opponents
   const n = 3 + (g % 4);
-  const levels = Array.from({ length: n }, (_, i) => LEVELS[(i + g) % 3]);
+  const levels = Array.from({ length: n }, (_, i) => LEVELS[(i + g) % LEVELS.length]);
   const r = run(levels, 1000 + g);
   rounds += r.rounds; top += r.top;
   agg[r.winner].wins++;

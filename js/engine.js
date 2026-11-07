@@ -70,7 +70,7 @@ export function createGame(cfg) {
 
   const s = {
     v: VERSION, seed: cfg.seed ?? (Math.random() * 2 ** 31) | 0,
-    cfg: { chars: [...cfg.chars], goal: cfg.goal || 8, level: cfg.level || 'normal' },
+    cfg: { chars: [...cfg.chars], goal: cfg.goal || 8, level: 'hard' },
     players: cfg.players.map((p, i) => ({
       id: i, name: p.name, ai: !!p.ai, avatar: p.avatar || '',
       gold: 2, hand: [], city: [], chars: [], lastRank: 0, saw: [],

@@ -517,7 +517,7 @@ export function createUI(ctx) {
     els.prompt.innerHTML = s;
   }
 
-  // ── hints: the advisor (normal-level AI) suggests a move and the UI points at it ──
+  // ── hints: the advisor (Cunning AI) suggests a move and the UI points at it ──
   function describe(a, v) {
     const me = v.players[v.me];
     const cardIn = (list, uid) => list?.find(c => c.uid === uid);

@@ -14,7 +14,7 @@ Math.random = () => { let t = (seed = (seed + 0x6D2B79F5) | 0); t = Math.imul(t 
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const TOTAL = makeDeck().length;
 const SETS = Object.entries(PRESETS);
-const LEVELS = ['easy', 'normal', 'hard'];
+const LEVELS = ['hard'];
 
 // ── 1. twin worlds ───────────────────────────────────────────────────────────
 // Re-deal everything `pid` cannot see. Their view (= the only AI input) must not change.
@@ -71,7 +71,7 @@ const pct = (a, b) => (b ? ((100 * a) / b).toFixed(0) + '%' : '—');
 const standing = (s, p) => score(s, p).total + p.gold * 0.5;
 
 function play({ n, chars, goal, levels, monkeySeat = -1, seedNo }) {
-  let s = createGame({ players: levels.map((l, i) => ({ name: 'P' + i, ai: true })), chars, goal, seed: seedNo, level: 'normal' });
+  let s = createGame({ players: levels.map((l, i) => ({ name: 'P' + i, ai: true })), chars, goal, seed: seedNo, level: 'hard' });
   const lastRob = {}, lastKill = {}, lastPicks = {};
   let steps = 0, twins = 0, monkeyMoves = 0;
   while (s.phase !== 'over') {
@@ -153,7 +153,7 @@ for (let g = 0; g < N; g++) {
   const [, chars] = SETS[g % SETS.length];
   const n = 2 + (g % 6);
   if (chars.length < n * charsPerPlayer(n) + 1) continue;
-  const levels = Array.from({ length: n }, (_, i) => LEVELS[(g + i) % 3]);
+  const levels = Array.from({ length: n }, (_, i) => LEVELS[(g + i) % LEVELS.length]);
   const monkeySeat = g % 4 === 3 ? g % n : -1; // every 4th game has a random-move player
   const r = play({ n, chars, goal: g % 2 ? 7 : 8, levels, monkeySeat, seedNo: 9000 + g });
   games++; twins += r.twins; monkeyMoves += r.monkeyMoves; roundsSum += r.s.round;

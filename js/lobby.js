@@ -18,7 +18,7 @@ export function createLobby(ctx) {
   const L = {
     screen: 'home', error: null, info: null,
     name: saved.name || '', avatar: saved.avatar || AVATARS[0],
-    opp: saved.opp || 3, chars: saved.chars || PRESETS.classic, goal: saved.goal || 8, level: saved.level || 'normal', timer: saved.timer || 0,
+    opp: saved.opp || 3, chars: saved.chars || PRESETS.classic, goal: saved.goal || 8, level: 'hard', timer: saved.timer || 0,
     code: '', seats: [], roomCode: '', copied: false,
   };
   const persist = () => { try { localStorage.setItem('c3d.prefs', JSON.stringify({ name: L.name, avatar: L.avatar, opp: L.opp, chars: L.chars, goal: L.goal, level: L.level, timer: L.timer })); } catch {} };
@@ -42,8 +42,8 @@ export function createLobby(ctx) {
       <div class="strip">${[...L.chars].sort((a, b) => CHAR[a].rank - CHAR[b].rank).map(id => `<span class="chip named" style="--cc:${CHAR[id].color}" title="${esc(cabil(id))}">${svg(CHAR[id].key)}<b>${ROMAN[CHAR[id].rank]}</b>${esc(cname(id))}</span>`).join('')}
         <button class="link" data-a="custom">${t('lb.preset.custom')} ▾</button></div></div>
     <div class="field row"><span>${t('lb.goal')}</span><div class="seg">${[7, 8].map(g => `<button class="${L.goal === g ? 'on' : ''}" data-a="goal" data-v="${g}">${g}</button>`).join('')}</div></div>
-    <div class="field row"><span>${t('lb.level')}</span><div class="seg">${['easy', 'normal', 'hard'].map(k => `<button class="${L.level === k ? 'on' : ''}" data-a="level" data-v="${k}">${t('lb.lvl.' + k)}</button>`).join('')}</div></div>
-    <p class="note left lvl-note">${t('lb.lvlDesc.' + L.level)}</p>`;
+    <div class="field row"><span>${t('lb.level')}</span><span>${t('lb.lvl.hard')}</span></div>
+    <p class="note left lvl-note">${t('lb.lvlDesc.hard')}</p>`;
   };
   const timerSetup = () => `<div class="field row"><span>${t('lb.timer')}</span><div class="seg">${[0, 60, 120].map(s => `<button class="${L.timer === s ? 'on' : ''}" data-a="timer" data-v="${s}">${s ? s + 's' : t('lb.off')}</button>`).join('')}</div></div>`;
 
@@ -132,7 +132,6 @@ export function createLobby(ctx) {
       case 'goal': L.goal = +v; break;
       case 'settings': return ctx.openSettings();
       case 'tutorial': persist(); return ctx.startTutorial({ name: myName(), avatar: L.avatar });
-      case 'level': L.level = v; break;
       case 'timer': L.timer = +v; break;
       case 'continue': return ctx.cont();
       case 'startSolo': persist(); return ctx.startSolo({ name: myName(), avatar: L.avatar, opp: L.opp, chars: L.chars, goal: L.goal, level: L.level });

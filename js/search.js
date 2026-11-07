@@ -1,6 +1,6 @@
 // Lookahead for the "cunning" AI: determinized Monte-Carlo search.
 // For a decision, sample hidden information consistent with what this player knows (opponents'
-// hands, unrevealed characters, the deck), play the rest of the round out with the normal AI for
+// hands, unrevealed characters, the deck), play the rest of the round out with the Cunning heuristic policy for
 // everyone, and keep the option that leaves us furthest ahead. Common random numbers: each
 // sample is shared by all options, so they're compared on identical "worlds".
 
@@ -26,7 +26,6 @@ function weightedTake(items, weight) { // remove and return one item, chosen by 
 export function determinize(v, me) {
   const s = structuredClone(v);
   s.seed = (Math.random() * 2 ** 31) | 0;
-  s.cfg.level = 'normal';
   const known = new Set();
   const mark = cards => cards.forEach(c => !c.hidden && known.add(c.uid));
   s.players.forEach(p => { mark(p.city); if (p.id === me) mark(p.hand); });
@@ -53,7 +52,7 @@ export function determinize(v, me) {
     // whatever's left is face down — including a face-down card we're allowed to take (7 players)
     d.faceDown = [...(d.options || []).filter(c => !d.avail.includes(c)), ...missing];
   } else if (s.phase === 'turns') {
-    const probs = holdProbs(v, mine, 'hard');
+    const probs = holdProbs(v, mine);
     const open = [...probs.keys()];
     for (const p of shuffle(s.players.filter(q => q.id !== me))) {
       const need = (p.charCount ?? p.chars.length) - p.chars.length;
@@ -76,7 +75,7 @@ function playOutRound(s) {
     s.deckCount = s.deck.length;
     if (s.phase === 'draft') s.draft.options = draftOptions(s);
     let a = null;
-    try { a = aiAction(s, pid); } catch { /* fall back below */ }
+    try { a = aiAction(s, pid, { lookahead: false }); } catch { /* fall back below */ }
     let r = a ? actInPlace(s, pid, a) : { error: 1 };
     if (r.error) { r = actInPlace(s, pid, safeAction(s, pid)); if (r.error) break; }
   }

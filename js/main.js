@@ -54,8 +54,8 @@ const lobby = createLobby({
   getSpeed: () => G.speed, setSpeed, relang, openSettings,
   canContinue, cont, stats: () => store.get('c3d.stats'),
   startSolo, createRoom, addAI, removeSeat, startHost, joinRoom,
-  // the guided first game: easy opponents, the classic eight, a fixed deal that teaches well
-  startTutorial: o => { startTutorial(); startSolo({ ...o, opp: 3, chars: PRESETS.classic, goal: 8, level: 'easy', seed: 2026 }); },
+  // the guided first game: Cunning opponents, the classic eight, a fixed deal that teaches well
+  startTutorial: o => { startTutorial(); startSolo({ ...o, opp: 3, chars: PRESETS.classic, goal: 8, level: 'hard', seed: 2026 }); },
   cancelNet: () => { closeRoom(); closeLink(); },
 });
 
@@ -147,11 +147,11 @@ function dispatch(a) {
   setState(n);
 }
 
-// The advisor: what a sensible (normal) AI would do in my seat, from my own view only.
+// The advisor uses the Cunning AI, from my own view only.
 function hint() {
   const v = G.view;
   if (!v || v.phase === 'over' || currentActor(v) !== G.me) return null;
-  try { return aiAction({ ...v, cfg: { ...v.cfg, level: 'normal' } }, G.me); } catch { return null; }
+  try { return aiAction(v, G.me); } catch { return null; }
 }
 
 // ── turn timer (host option): an idle human's decision is made by the advisor ──
