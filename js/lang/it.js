@@ -1,5 +1,13 @@
 // Italiano. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.spy": "Spia",
+  "a.spy": "Nomina un tipo di quartiere e guarda la mano di un altro giocatore. Ruba 1 oro per corrispondenza, fino alla sua riserva, e ottieni fino a 2 carte, anche se non ha oro.",
+  "ui.spyReview": "Mano ispezionata",
+  "ui.spyHint": "Scegli giocatore e tipo prima di guardare. Ottieni al massimo 2 carte; questo limite non riguarda l’oro rubato.",
+  "ui.spySnapshot": "Copia privata disponibile fino alla fine del turno di questo personaggio.",
+  "ui.spyEmpty": "Questa mano è vuota.",
+  "l.spy": "{name} spia {target} ({color}), ruba {gold} oro e ottiene {n} carte.",
+  "h.spy": "spiare {name}: {color}",
   "c.magistrate": "Magistrato",
   "a.magistrate": "Assegna tre mandati: uno firmato e due esche. Confisca il primo quartiere pagato del bersaglio firmato e restituisci il suo oro.",
   "ui.warrantTitle": "Assegna mandati",

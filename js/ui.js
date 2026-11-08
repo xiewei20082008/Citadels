@@ -1,25 +1,25 @@
 // In-game HUD: top bar, call track, seat labels, hand dock, action buttons, sheets (modals),
 // character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM over WebGL.
 
-import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=9fea029a';
+import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=f9072509';
 import {
   rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate,
-} from './engine.js?v=9fea029a';
-import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=9fea029a';
-import { svg, ROMAN } from './icons.js?v=9fea029a';
-import { sfx } from './sfx.js?v=9fea029a';
-import { prefs, alertTurn, vibrate } from './settings.js?v=9fea029a';
-import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=9fea029a';
+} from './engine.js?v=f9072509';
+import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=f9072509';
+import { svg, ROMAN } from './icons.js?v=f9072509';
+import { sfx } from './sfx.js?v=f9072509';
+import { prefs, alertTurn, vibrate } from './settings.js?v=f9072509';
+import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=f9072509';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ACTIVE = { magistrate: 'warrants', assassin: 'kill', thief: 'rob', magician: 'mag', warlord: 'war', wizard: 'wiz', seer: 'seer', navigator: 'nav', scholar: 'scholar' };
-const ABILITY_ICON = { warrants: 'magistrate', kill: 'assassin', rob: 'thief', mag: 'magician', war: 'warlord', wiz: 'wizard', seer: 'seer', nav: 'navigator', scholar: 'scholar' };
-const ABILITY_OF_ACTION = { warrants: 'warrants', kill: 'kill', rob: 'rob', swap: 'mag', redraw: 'mag', destroy: 'war', peek: 'wiz', seer: 'seer', nav: 'nav', scholar: 'scholar' };
+const ACTIVE = { spy: 'spy', magistrate: 'warrants', assassin: 'kill', thief: 'rob', magician: 'mag', warlord: 'war', wizard: 'wiz', seer: 'seer', navigator: 'nav', scholar: 'scholar' };
+const ABILITY_ICON = { spy: 'spy', warrants: 'magistrate', kill: 'assassin', rob: 'thief', mag: 'magician', war: 'warlord', wiz: 'wizard', seer: 'seer', nav: 'navigator', scholar: 'scholar' };
+const ABILITY_OF_ACTION = { spy: 'spy', warrants: 'warrants', kill: 'kill', rob: 'rob', swap: 'mag', redraw: 'mag', destroy: 'war', peek: 'wiz', seer: 'seer', nav: 'nav', scholar: 'scholar' };
 // Colour-blind aid (setting): each district colour also gets a symbol.
 const COLOR_SYM = { yellow: 'king', blue: 'bishop', green: 'merchant', red: 'warlord', purple: 'magician' };
 const BLOCKING = ['draft', 'discard', 'keep', 'wizPick', 'seerGive', 'grave', 'warrantResponse', 'over'];
-const TURN_SHEETS = ['warrants', 'kill', 'rob', 'mag', 'war', 'wiz', 'seer', 'nav', 'scholar', 'den', 'lab'];
+const TURN_SHEETS = ['spy', 'spyResult', 'warrants', 'kill', 'rob', 'mag', 'war', 'wiz', 'seer', 'nav', 'scholar', 'den', 'lab'];
 export const EMOTES = ['👍', '😂', '😮', '😡', '😈', '👑', '🙏', '🎉'];
 const seatHue = pid => SEAT_HUES[pid % SEAT_HUES.length];
 
@@ -166,6 +166,7 @@ export function createUI(ctx) {
       case 'warrants': return t('l.warrants', { name: n(e.pid), chars: e.targets.map(cname).join(', ') });
       case 'confiscate': return t('l.confiscate', { name: n(e.pid), target: n(e.target), dist: dname(e.card), n: e.refund });
       case 'peek': return t('l.peek', { name: n(e.pid), target: n(e.target) });
+      case 'spy': return t('l.spy', { name: n(e.pid), target: n(e.target), color: t('col.' + e.color), gold: e.gold, n: e.n });
       case 'wizTake': return t('l.wizTake', { name: n(e.pid), target: n(e.target) });
       case 'seer': return t('l.seer', { name: n(e.pid), n: e.n });
       case 'seerGive': return t('l.seerGive', { name: n(e.pid), n: e.n });
@@ -275,7 +276,7 @@ export function createUI(ctx) {
       }
       case 'crown': sfx('crown'); toast(txt, 'gold'); return 700;
       case 'complete': sfx('win'); banner(e); toast(`<b>${txt}</b>`, 'gold'); return 2000;
-      case 'warrants': case 'confiscate': case 'swap': case 'wizTake': case 'graveyard': case 'seer': case 'peek': case 'seerGive': case 'redraw': sfx('card', 2); toast(txt); return 700;
+      case 'spy': case 'warrants': case 'confiscate': case 'swap': case 'wizTake': case 'graveyard': case 'seer': case 'peek': case 'seerGive': case 'redraw': sfx('card', 2); toast(txt); return 700;
       case 'over': sfx('win'); return 600;
     }
     return 300;
@@ -319,7 +320,7 @@ export function createUI(ctx) {
     if (decisionKey !== L.decisionKey) { L.decisionKey = decisionKey; L.drawers = []; }
     // a new turn (incl. my second character straight after my first) closes the last turn's tools
     const turnKey = myTurn ? view.round + ':' + T.charId : null, wasWar = L.sheet === 'war';
-    if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; L.warrantTargets = []; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
+    if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; L.warrantTargets = []; L.spyTarget = null; L.spyColor = null; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
     const draftKey = draftMine ? view.round + ':' + view.draft.idx : null;
     if (draftKey !== L.draftKey) { L.draftKey = draftKey; L.draftSel = null; if (draftKey) alertTurn(); }
     if (myTurn && ABILITY_ICON[L.sheet] && L.sheet !== abilityKey(view)) L.sheet = null; // ability already spent
@@ -356,6 +357,8 @@ export function createUI(ctx) {
       : pend?.k === 'keep' ? 'keep' : pend?.k === 'wizard' ? 'wizPick' : pend?.k === 'seerGive' ? 'seerGive' : null;
     if (auto && L.sheet !== auto && !L.drawers.some(d => d.sheet === auto)) { L.sheet = auto; L.multi.clear(); }
     else if (!auto && BLOCKING.includes(L.sheet) && L.sheet !== 'over') L.sheet = null;
+    const spyKey = myTurn && T.spyPeek ? `${view.me}:${view.round}:${T.charId}` : null;
+    if (spyKey && L.spySeen !== spyKey) { L.spySeen = spyKey; L.sheet = 'spyResult'; }
     if (draftMine) coach('draft');
     if (myTurn) coach('turn');
     if (view.phase === 'turns' && view.round === 1 && !myTurn) coach('call');
@@ -485,6 +488,7 @@ export function createUI(ctx) {
       b.push(`<button class="btn" data-a="draw" ${view.deckCount ? '' : 'disabled'}>${svg('draw')}<span>${has(me, 'library') ? t('ui.drawAll', { n }) : t('ui.drawCards', { n, k: 1 })}</span><kbd>D</kbd></button>`);
     }
     const ab = abilityKey(view);
+    if (T.spyPeek) b.push(`<button class="btn" data-a="sheet" data-v="spyResult">${svg('spy')}<span>${t('ui.spyReview')}</span></button>`);
     if (ab) b.push(`<button class="btn ability" style="--cc:${CHAR[T.charId].color}" data-a="sheet" data-v="${ab}">${svg(ABILITY_ICON[ab])}<span>${esc(cname(T.charId))}</span><kbd>A</kbd></button>`);
     if (has(me, 'smithy') && !T.used.smithy && me.gold >= 2) b.push(`<button class="btn small" data-a="smithy">${svg('smithy')}<span>${t('ui.smithy')}</span></button>`);
     if (has(me, 'laboratory') && !T.used.lab && me.hand.length) b.push(`<button class="btn small" data-a="sheet" data-v="lab">${svg('lab')}<span>${t('ui.lab')}</span></button>`);
@@ -533,6 +537,7 @@ export function createUI(ctx) {
       case 'wizTake': return t('h.wizTake', { dist: dname(cardIn(v.turn.pending.cards, a.uid)) });
       case 'kill': case 'rob': return t('h.' + a.t, { char: cname(rankChar(a.rank)) });
       case 'swap': case 'peek': return t('h.' + a.t, { name: realName(a.target) });
+      case 'spy': return t('h.spy', { name: realName(a.target), color: t('col.' + a.color) });
       case 'redraw': return t('h.redraw', { n: a.uids.length });
       case 'destroy': return t('h.destroy', { name: realName(a.target), dist: dname(cardIn(v.players[a.target].city, a.uid)) });
       case 'nav': return t(a.choice === 'gold' ? 'h.navg' : 'h.navc');
@@ -551,6 +556,7 @@ export function createUI(ctx) {
     if (a.t === 'pick' || a.t === 'discard') L.draftSel = a.charId; // preselect: one tap on the button confirms
     if (a.t === 'kill' || a.t === 'rob') L.targetSel = a.rank;
     if (a.t === 'warrants') L.warrantTargets = [a.signed, ...a.targets.filter(c => c !== a.signed)];
+    if (a.t === 'spy') { L.spyTarget = a.target; L.spyColor = a.color; }
     if (a.t === 'destroy') L.warSel = a.uid;
     render(L.view);
   }
@@ -569,6 +575,7 @@ export function createUI(ctx) {
     if (a.t === 'wizTake') sel.push(`[data-a="${a.build ? 'wizBuild' : 'wizTake'}"][data-v="${a.uid}"]`);
     if (a.t === 'kill' || a.t === 'rob') sel.push(`.ccard[data-a="${a.t}"][data-v="${a.rank}"]`);
     if (a.t === 'swap' || a.t === 'peek') sel.push(`[data-a="${a.t}"][data-v="${a.target}"]`);
+    if (a.t === 'spy') sel.push(`[data-a="spyTarget"][data-v="${a.target}"]`, `[data-a="spyColor"][data-v="${a.color}"]`, '[data-a="spyGo"]');
     if (a.t === 'redraw' || a.t === 'seerGive') a.uids.forEach(u => sel.push(`.card[data-a="multi"][data-uid="${u}"]`));
     if (a.t === 'destroy') sel.push(`.card[data-a="destroy"][data-uid="${a.uid}"]`);
     if (a.t === 'seer') sel.push('[data-a="seerGo"]');
@@ -700,6 +707,14 @@ export function createUI(ctx) {
         { foot: `<div class="sh-foot"><button class="btn small ghost hint-btn" data-a="hint">${svg('help')}<span>${t('ui.hint')}</span></button>
           <button class="btn danger" data-a="destroyGo" ${pick ? '' : 'disabled'}>${pick ? t('war.go', { dist: dname(pick.card), n: pick.cost }) : t('war.pick')}</button></div>` });
       wide = true;
+    } else if (s === 'spy') {
+      const opps = v.players.filter(p => p.id !== v.me);
+      html = sheetFrame(cname(18), `<p class="note">${t('ui.spyHint')}</p>
+        <div class="spy-targets">${opps.map(p => `<button class="btn small ${L.spyTarget === p.id ? 'primary' : ''}" data-a="spyTarget" data-v="${p.id}" aria-pressed="${L.spyTarget === p.id}"><span class="spy-name">${esc(p.name)}</span><span class="spy-stats"><span class="st">${svg('card')}<b>${p.handCount}</b></span><span class="st">${svg('gold')}<b>${p.gold}</b></span></span></button>`).join('')}</div>
+        <div class="spy-colors">${COLORS.map(color => `<button class="btn small ${L.spyColor === color ? 'primary' : ''}" data-a="spyColor" data-v="${color}" aria-pressed="${L.spyColor === color}" style="--cc:${HUE[color]}">${svg(COLOR_SYM[color])}${t('col.' + color)}</button>`).join('')}</div>`,
+        { foot: `<div class="sh-foot"><button class="btn small ghost" data-a="hint">${t('ui.hint')}</button><button class="btn primary" data-a="spyGo" ${opps.some(p => p.id === L.spyTarget) && COLORS.includes(L.spyColor) ? '' : 'disabled'}>${t('ui.confirm')}</button></div>` });
+    } else if (s === 'spyResult' && T?.spyPeek) {
+      html = sheetFrame(cname(18) + ' · ' + realName(T.spyPeek.target), `<p class="note">${t('ui.spySnapshot')}</p><div class="cards-pick">${sortHand(T.spyPeek.cards).map(c => cardHTML(c)).join('') || `<p>${t('ui.spyEmpty')}</p>`}</div>`);
     } else if (s === 'wiz') {
       const opps = v.players.filter(p => p.id !== v.me && p.handCount);
       html = sheetFrame(t('ui.wizTitle'), `<div class="plist">${opps.map(p => `<button class="pitem" data-a="peek" data-v="${p.id}">${avatar(p)}<span>${esc(p.name)}</span><span class="st">${svg('card')}<b>${p.handCount}</b></span></button>`).join('')}</div>`, { foot: hintFoot });
@@ -941,6 +956,13 @@ export function createUI(ctx) {
         return go({ t: a.startsWith('kill') ? 'kill' : 'rob', rank });
       }
       case 'swap': closeSheet(); return go({ t: 'swap', target: +v });
+      case 'spyTarget': L.spyTarget = +v; return renderSheet();
+      case 'spyColor': L.spyColor = v; return renderSheet();
+      case 'spyGo': {
+        if (!Number.isInteger(L.spyTarget) || !COLORS.includes(L.spyColor)) return;
+        const action = { t: 'spy', target: L.spyTarget, color: L.spyColor, round: view.round };
+        closeSheet(); return go(action);
+      }
       case 'multi': {
         const uid = el.dataset.uid;
         // when the selection is already full (Seer give-back, Thieves' Den), a new pick replaces the oldest
@@ -1060,6 +1082,6 @@ export function createUI(ctx) {
     relang() { chrome(); if (L.view) render(L.view); },
     show() { root.classList.add('on'); insets(); },
     hide() { root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(); },
-    resetLog() { L.log = []; L.evShown = undefined; L.shown = null; },
+    resetLog() { L.log = []; L.evShown = undefined; L.shown = null; L.spySeen = null; },
   };
 }

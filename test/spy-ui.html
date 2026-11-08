@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spy UI fixture</title>
+<link rel="stylesheet" href="../style.css">
+<style>body { background: #16282d; } #hud .labels { display: none; }</style>
+<div id="hud"></div>
+<script type="module">
+// Manual regression fixture: serve the repository, then open /test/spy-ui.html.
+// Uses the real engine, private view and HUD without loading the 3D renderer.
+import { createGame, act, viewFor } from '../js/engine.js';
+import { createUI } from '../js/ui.js';
+import { aiAction } from '../js/ai.js';
+let state = createGame({ players: ['Spy', 'Lady Mira', 'Duke Arven', 'Baron Selt', 'Countess Vael', 'Lord Draven', 'Dame Isolde'].map(name => ({ name })),
+  chars: [17, 18, 11, 4, 5, 6, 7, 8], seed: 42 });
+state.players.forEach((p, i) => { p.chars = [state.cfg.chars[i + 1] ?? 17]; });
+state.players[0].chars = [18];
+state.players[1].gold = 0;
+state.deck.push(...state.players[1].hand);
+state.players[1].hand = [];
+for (let i = 0; i < 4; i++) {
+  const index = state.deck.findIndex(c => c.color === 'green');
+  state.players[1].hand.push(state.deck.splice(index, 1)[0]);
+}
+state.phase = 'turns'; state.call = 2; state.revealed = [18];
+state.turn = { pid: 0, charId: 18, rank: 2, income: false, built: 0, paidBuild: false, max: 1, used: {}, pending: null };
+const noop = () => {};
+const ui = createUI({ thumbs: {}, mode: () => 'solo', scene: { setInsets: noop, highlight: noop, focus: noop, resetView: noop },
+  hint: () => aiAction(viewFor(state, 0), 0, { lookahead: false }),
+  dispatch(action) {
+    const next = act(state, 0, action);
+    if (next.error) return ui.toast(next.error);
+    state = next;
+    ui.render(viewFor(state, 0));
+  }, emote: noop, openSettings: noop, again: noop, leave: noop });
+ui.show(); ui.render(viewFor(state, 0));
+</script>
+</html>

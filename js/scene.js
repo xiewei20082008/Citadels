@@ -9,10 +9,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { pattern, warmEnvironment } from './materials.js?v=9fea029a';
-import { makeBuilding, mat } from './models.js?v=9fea029a';
-import { CHAR, HUE, SEAT_HUES } from './data.js?v=9fea029a';
-import { emblemURL, ROMAN } from './icons.js?v=9fea029a';
+import { pattern, warmEnvironment } from './materials.js?v=f9072509';
+import { makeBuilding, mat } from './models.js?v=f9072509';
+import { CHAR, HUE, SEAT_HUES } from './data.js?v=f9072509';
+import { emblemURL, ROMAN } from './icons.js?v=f9072509';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const ease = {
@@ -807,6 +807,7 @@ export function createScene(canvas, hooks = {}) {
       case 'round': spot.intensity = 0; return;
       case 'gold': return flyCoins(anchor.bank(), anchor.coins(ev.pid), ev.n);
       case 'robbed': return flyCoins(anchor.coins(ev.from), anchor.coins(ev.to), ev.n);
+      case 'spy': return Promise.all([flyCoins(anchor.coins(ev.target), anchor.coins(ev.pid), ev.gold), flyCards(anchor.deck(), anchor.cards(ev.pid), ev.n)]);
       case 'tithe': return flyCoins(anchor.coins(ev.from), anchor.coins(ev.to), 1);
       case 'cards': case 'draw': return flyCards(anchor.deck(), anchor.cards(ev.pid), ev.n);
       case 'swap': return Promise.all([flyCards(anchor.cards(ev.pid), anchor.cards(ev.target), 3), flyCards(anchor.cards(ev.target), anchor.cards(ev.pid), 3)]);

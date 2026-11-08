@@ -21,10 +21,12 @@ Nothing to download or install: it runs in any desktop or phone browser. On a ph
 
 New to Citadels? The home screen has **How to play**, and during a game the **Hint** button suggests your next move.
 
+To play the **Spy**, open **Custom** character selection and choose Spy at rank II instead of the Thief. Name a district type before inspecting another player's hand. Steal one gold per match up to their stash and gain up to two cards, even if they have no gold. The two-card cap is a project variant. The private hand snapshot stays available until the Spy's turn ends.
+
 ## Features
 
 - **2–7 players**, solo or online.
-- **Cunning AI:** opponents infer hidden roles and look ahead before key moves. The AI only knows what it is allowed to know; it never sees your hand or hidden characters.
+- **Cunning AI:** opponents infer hidden roles and look ahead before key moves. The AI uses only its permitted view, including private hand inspections granted by character abilities.
 - **11 languages:** English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Português, Русский and Italiano. Pick one in ⚙️ Settings at any time.
 - **Settings (⚙️):** four generated music tracks (Candlelight, Moonlit Garden, Neon Citadel, Tavern Night) with volume, AI speed, a check before ending a turn with builds left, turn alerts (tab title flash, vibration), reduce motion and colour-blind card symbols.
 - **Learn as you play:** a guided first game, a round-by-round feed of what everyone did (tap the round counter), every choice explained in numbers ("+2 gold, takes the Crown"), and an end-of-game recap with highlights.
@@ -43,9 +45,13 @@ Tests:
 
 ```bash
 node test/engine.test.mjs     # rules self-check + every language covers every string
+node test/spy.test.mjs        # Spy rewards, private inspection, AI expectations and corner cases
+node test/magistrate.test.mjs # warrants and construction interruptions
 node test/pressure.mjs 600    # pressure test: fairness (AI can't see hidden info), random-move fuzzing, AI behaviour stats
 node test/ai-duel.mjs 400     # Tuned vs baseline Cunning AI win rate
 ```
+
+For a repeatable Spy interface check, open `http://localhost:5173/test/spy-ui.html` while the local server is running. This fixture uses the real HUD and engine with six opponents, including a penniless target holding four trade districts. Check the selection and inspection panels at 393×852 as well as on desktop.
 
 | File | Role |
 |---|---|

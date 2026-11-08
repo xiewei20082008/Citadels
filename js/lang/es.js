@@ -1,5 +1,13 @@
 // Español. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.spy": "Espía",
+  "a.spy": "Nombra un tipo de distrito y mira la mano de otro jugador. Roba 1 oro por coincidencia, hasta su reserva, y gana hasta 2 cartas, aunque no tenga oro.",
+  "ui.spyReview": "Mano inspeccionada",
+  "ui.spyHint": "Elige jugador y tipo antes de mirar. Ganas como máximo 2 cartas; ese límite no afecta al oro robado.",
+  "ui.spySnapshot": "Copia privada disponible hasta el final del turno de este personaje.",
+  "ui.spyEmpty": "Esta mano está vacía.",
+  "l.spy": "{name} espía a {target} ({color}), roba {gold} de oro y gana {n} cartas.",
+  "h.spy": "espiar a {name}: {color}",
   "c.magistrate": "Magistrado",
   "a.magistrate": "Coloca tres órdenes: una firmada y dos señuelos. Confisca el primer distrito pagado del objetivo firmado y devuelve su oro.",
   "ui.warrantTitle": "Asignar órdenes",

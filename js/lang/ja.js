@@ -1,5 +1,13 @@
 // 日本語. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.spy": "密偵",
+  "a.spy": "地区の種類を宣言し、他のプレイヤーの手札を見る。一致するカード1枚につき所持金の範囲で1金を奪い、最大2枚引く。相手が0金でも引ける。",
+  "ui.spyReview": "確認した手札",
+  "ui.spyHint": "見る前に相手と地区の種類を選ぶ。獲得カードは最大2枚。奪う金にこの上限はない。",
+  "ui.spySnapshot": "この役職の手番終了まで見られる非公開の記録。",
+  "ui.spyEmpty": "手札はありません。",
+  "l.spy": "{name}は{target}を偵察（{color}）し、{gold}金を奪い、{n}枚獲得。",
+  "h.spy": "{name}を偵察：{color}",
   "c.magistrate": "判事",
   "a.magistrate": "令状を3枚配置：署名付き1枚と囮2枚。署名付きの対象が最初に支払って建てる地区を没収し、金を返す。",
   "ui.warrantTitle": "令状を配置",

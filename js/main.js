@@ -1,17 +1,17 @@
 // App controller: owns the authoritative state (solo/host), the AI driver, event playback,
 // persistence, turn timer, emotes, stats and the host/peer plumbing. UI, lobby and scene are views.
 
-import { createScene } from './scene.js?v=9fea029a';
-import { renderThumbs } from './models.js?v=9fea029a';
-import { createUI, EMOTES } from './ui.js?v=9fea029a';
-import { createLobby } from './lobby.js?v=9fea029a';
-import { createGame, act, viewFor, currentActor, VERSION } from './engine.js?v=9fea029a';
-import { aiAction, safeAction } from './ai.js?v=9fea029a';
-import { DIST_IDS, AI_NAMES, AVATARS, PRESETS } from './data.js?v=9fea029a';
-import { t, getLang, setLang } from './i18n.js?v=9fea029a';
-import * as net from './net.js?v=9fea029a';
-import { initSettings, openSettings, closeSettings } from './settings.js?v=9fea029a';
-import { startTutorial, stopTutorial, tutorialActive } from './tutorial.js?v=9fea029a';
+import { createScene } from './scene.js?v=f9072509';
+import { renderThumbs } from './models.js?v=f9072509';
+import { createUI, EMOTES } from './ui.js?v=f9072509';
+import { createLobby } from './lobby.js?v=f9072509';
+import { createGame, act, viewFor, currentActor, VERSION } from './engine.js?v=f9072509';
+import { aiAction, safeAction } from './ai.js?v=f9072509';
+import { DIST_IDS, AI_NAMES, AVATARS, PRESETS } from './data.js?v=f9072509';
+import { t, getLang, setLang } from './i18n.js?v=f9072509';
+import * as net from './net.js?v=f9072509';
+import { initSettings, openSettings, closeSettings } from './settings.js?v=f9072509';
+import { startTutorial, stopTutorial, tutorialActive } from './tutorial.js?v=f9072509';
 
 const SPEED = { slow: 1.45, normal: 1, fast: 0.5 };
 const store = {

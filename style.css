@@ -857,3 +857,9 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
 .warrant-choices .btn { white-space: normal; min-width: 0; padding: 8px; font-size: 12px; }
 .warrant-mark { position: absolute; right: 1px; top: 1px; color: #d9b267; font-size: 12px; line-height: 1; }
 .warrant-mark.signed { color: #fff1be; }
+/* Spy choices stay compact with all seven seats on a phone. */
+.spy-targets, .spy-colors { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.spy-targets .btn { flex: 1 1 44%; min-width: 0; flex-direction: column; gap: 4px; white-space: normal; overflow-wrap: anywhere; }
+.spy-name { width: 100%; }
+.spy-stats { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.spy-colors .btn { flex: 1 1 28%; min-width: 0; }

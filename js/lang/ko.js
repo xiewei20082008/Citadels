@@ -1,5 +1,13 @@
 // 한국어. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.spy": "첩자",
+  "a.spy": "지구 유형을 지정하고 다른 플레이어의 손패를 봅니다. 일치하는 카드마다 상대 보유량 내에서 금 1개를 훔치고 카드를 최대 2장 얻습니다. 상대의 금이 없어도 카드를 얻습니다.",
+  "ui.spyReview": "확인한 손패",
+  "ui.spyHint": "보기 전에 상대와 지구 유형을 고르세요. 카드는 최대 2장 얻으며 금에는 이 제한이 없습니다.",
+  "ui.spySnapshot": "이 캐릭터의 차례가 끝날 때까지 볼 수 있는 비공개 기록입니다.",
+  "ui.spyEmpty": "손패가 없습니다.",
+  "l.spy": "{name}: {target} 정찰({color}), 금 {gold}개와 카드 {n}장 획득.",
+  "h.spy": "{name} 정찰: {color}",
   "c.magistrate": "치안판사",
   "a.magistrate": "영장 3개를 배치합니다. 서명 1개와 미끼 2개입니다. 서명 대상의 첫 유료 건물을 몰수하고 지불한 금을 돌려줍니다.",
   "ui.warrantTitle": "영장 배치",

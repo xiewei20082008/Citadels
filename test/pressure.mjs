@@ -14,7 +14,9 @@ Math.random = () => { let t = (seed = (seed + 0x6D2B79F5) | 0); t = Math.imul(t 
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const TOTAL = makeDeck().length;
 const SETS = [...Object.entries(PRESETS),
-  ['magistrate', [17, 2, 11, 4, 5, 16, 7, 8, 9]]];
+  ['magistrate', [17, 2, 11, 4, 5, 16, 7, 8, 9]],
+  ['spy', [1, 18, 3, 4, 5, 6, 7, 8, 9]],
+  ['spy-magistrate', [17, 18, 11, 12, 13, 16, 14, 8, 9]]];
 const LEVELS = ['hard'];
 
 // ── 1. twin worlds ───────────────────────────────────────────────────────────
@@ -25,8 +27,13 @@ function twin(s, pid) {
     t.warrants.signed = t.warrants.targets[Math.floor(Math.random() * t.warrants.targets.length)];
   t.seed = (Math.random() * 2 ** 31) | 0;
   const others = t.players.filter(p => p.id !== pid);
-  const cards = shuffle([...t.deck, ...others.flatMap(p => p.hand)]);
-  for (const p of others) p.hand = cards.splice(0, p.hand.length);
+  const peek = t.turn?.pid === pid ? t.turn.spyPeek : null;
+  const known = new Set(peek?.cards.map(c => c.uid) || []);
+  const cards = shuffle([...t.deck, ...others.flatMap(p => p.hand)].filter(c => !known.has(c.uid)));
+  for (const p of others) {
+    const seen = peek?.target === p.id ? structuredClone(peek.cards) : [];
+    p.hand = [...seen, ...cards.splice(0, p.hand.length - seen.length)];
+  }
   t.deck = cards;
   const d = t.draft, picking = t.phase === 'draft' && d.order[d.idx] === pid;
   if (!picking) {
@@ -49,6 +56,9 @@ function candidates(s, pid) {
   if (s.interrupt) return [{ t: 'graveyard', take: true }, { t: 'graveyard', take: false }];
   if (s.phase === 'draft') return s.cfg.chars.flatMap(c => [{ t: 'pick', charId: c }, { t: 'discard', charId: c }]);
   const T = s.turn, P = T.pending;
+  if (T.charId === 18 && !T.used.ability && !P)
+    for (const q of s.players) for (const color of ['yellow', 'blue', 'green', 'red', 'purple'])
+      out.push({ t: 'spy', target: q.id, color, round: s.round });
   if (T.charId === 17 && !T.used.ability && !P) {
     const targets = shuffle([...s.cfg.chars]).slice(0, 3);
     out.push({ t: 'warrants', targets, signed: targets[0] });

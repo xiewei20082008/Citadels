@@ -22,6 +22,7 @@ function step(s) {
   }
   assert.equal(v.deck.length, 0);
   if (v.turn?.pending && v.turn.pid !== pid) assert.ok(!v.turn.pending.cards, 'pending leak');
+  if (v.turn && v.turn.pid !== pid) assert.ok(!v.turn.spyPeek, 'spy inspection leak');
   let n = act(s, pid, aiAction(v, pid)), fb = 0;
   if (n.error) { fb = 1; n = act(s, pid, safeAction(v, pid)); }
   assert.ok(!n.error, 'safe action failed: ' + n.error);
@@ -45,7 +46,9 @@ function play(n, chars, seed, goal) {
 }
 
 let games = 0, rounds = 0, fallbacks = 0, interrupts = 0;
-for (const [name, chars] of Object.entries(PRESETS))
+for (const [name, chars] of [...Object.entries(PRESETS),
+  ['spy', [1, 18, 3, 4, 5, 6, 7, 8, 9]],
+  ['spy-magistrate', [17, 18, 11, 12, 13, 16, 14, 8, 9]]])
   for (let n = 2; n <= 7; n++)
     for (let seed = 1; seed <= 9; seed++) {
       if (chars.length < n * charsPerPlayer(n) + 1) continue;

@@ -1,5 +1,13 @@
 // Deutsch (long compounds carry soft hyphens so they wrap on small cards). Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.spy": "Spion",
+  "a.spy": "Nenne einen Bezirkstyp und sieh die Hand eines anderen Spielers an. Stiehl je Treffer 1 Gold bis zu seinem Vorrat und erhalte bis zu 2 Karten, auch wenn er kein Gold hat.",
+  "ui.spyReview": "Angesehene Hand",
+  "ui.spyHint": "Wähle Spieler und Typ vor dem Ansehen. Höchstens 2 Karten; diese Grenze gilt nicht für gestohlenes Gold.",
+  "ui.spySnapshot": "Private Momentaufnahme bis zum Ende dieses Charakterzugs.",
+  "ui.spyEmpty": "Diese Hand ist leer.",
+  "l.spy": "{name} bespitzelt {target} ({color}), stiehlt {gold} Gold und erhält {n} Karten.",
+  "h.spy": "{name} bespitzeln: {color}",
   "c.magistrate": "Magistrat",
   "a.magistrate": "Verteile drei Haftbefehle: einen unterschriebenen und zwei Köder. Beschlagnahme den ersten bezahlten Bezirk des Ziels und erstatte sein Gold.",
   "ui.warrantTitle": "Haftbefehle verteilen",
