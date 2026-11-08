@@ -807,6 +807,7 @@ export function createScene(canvas, hooks = {}) {
       case 'round': spot.intensity = 0; return;
       case 'gold': return flyCoins(anchor.bank(), anchor.coins(ev.pid), ev.n);
       case 'robbed': return flyCoins(anchor.coins(ev.from), anchor.coins(ev.to), ev.n);
+      case 'spy': return Promise.all([flyCoins(anchor.coins(ev.target), anchor.coins(ev.pid), ev.gold), flyCards(anchor.deck(), anchor.cards(ev.pid), ev.n)]);
       case 'tithe': return flyCoins(anchor.coins(ev.from), anchor.coins(ev.to), 1);
       case 'cards': case 'draw': return flyCards(anchor.deck(), anchor.cards(ev.pid), ev.n);
       case 'swap': return Promise.all([flyCards(anchor.cards(ev.pid), anchor.cards(ev.target), 3), flyCards(anchor.cards(ev.target), anchor.cards(ev.pid), 3)]);

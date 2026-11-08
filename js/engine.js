@@ -5,7 +5,7 @@
 import { CHAR, COLORS, makeDeck } from './data.js';
 
 const MAX_EV = 120;
-export const VERSION = 3; // Magistrate warrants and suspended constructions
+export const VERSION = 4; // Spy character and private turn-scoped inspection snapshots
 const MAX_ROUNDS = 40; // ponytail: hard stop for degenerate games (empty deck + empty hands)
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -350,6 +350,23 @@ function actInner(state, pid, a, inPlace = false) {
   let err;
 
   switch (a.t) {
+    case 'spy': {
+      const target = Number.isInteger(a.target) && s.players[a.target];
+      if ((err = ability(18, !target || target.id === pid || !COLORS.includes(a.color) || a.round !== s.round
+        ? 'bad spy target, type or round' : null))) return fail(err);
+      // Commit target and type atomically before exposing the private snapshot.
+      // This is knowledge, not another physical card zone. It expires with this turn.
+      T.used.ability = true;
+      T.spyPeek = { target: target.id, cards: structuredClone(target.hand) };
+      const matches = target.hand.filter(c => c.color === a.color).length;
+      const gold = Math.min(matches, target.gold);
+      target.gold -= gold; p.gold += gold;
+      bump(p, 'stole', gold); bump(target, 'robbed', gold);
+      const cards = draw(s, Math.min(matches, 2));
+      p.hand.push(...cards);
+      emit(s, 'spy', { pid, target: target.id, color: a.color, gold, n: cards.length });
+      return s;
+    }
     case 'warrants': {
       if ((err = ability(17))) return fail(err);
       const targets = a.targets;
@@ -589,6 +606,7 @@ export function viewFor(s, pid) {
     else v.draft.options = draftOptions(s);
   }
   if (v.turn?.pending && v.turn.pid !== pid) v.turn.pending = { k: v.turn.pending.k };
+  if (v.turn && v.turn.pid !== pid) delete v.turn.spyPeek;
   if (v.warrants && v.warrants.pid !== pid && !v.warrants.revealed && !over) v.warrants.signed = null;
   return v;
 }

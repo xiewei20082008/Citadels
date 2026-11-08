@@ -38,6 +38,14 @@ export function setLang(l) {
 }
 
 const D = {
+  "c.spy": ["Spy","间谍"],
+  "a.spy": ["Name a district type, then inspect another player’s hand. Steal 1 gold per match (up to their stash) and gain up to 2 cards, even if they have no gold.","指定建筑类型，再查看另一位玩家的手牌。每张匹配牌偷取1金（不超过其金币），并获得最多2张牌；目标无金币也可获得牌。"],
+  "ui.spyReview": ["Inspected hand","查看过的手牌"],
+  "ui.spyHint": ["Choose a player and a district type before inspecting. Gain at most 2 cards; gold theft is not capped.","先选择玩家和建筑类型，再查看。最多获得2张牌，偷取金币无此上限。"],
+  "ui.spySnapshot": ["Private snapshot, available until this character’s turn ends.","私人快照，仅保留至当前角色回合结束。"],
+  "ui.spyEmpty": ["This hand is empty.","手牌为空。"],
+  "l.spy": ["{name} spies on {target} ({color}), stealing {gold} gold and gaining {n} cards.","{name}侦察了{target}（{color}），偷取{gold}金并获得{n}张牌。"],
+  "h.spy": ["spy on {name}: {color}","侦察{name}：{color}"],
   'c.magistrate': ['Magistrate', '裁判官'],
   'a.magistrate': ['Place three warrants: one signed, two decoys. Confiscate the signed target\'s first paid district and refund their gold.', '放置三张逮捕令：一张签署、两张诱饵。可没收签署目标首座付费建筑，并退还其金币。'],
   'ui.warrantTitle': ['Assign warrants', '分配逮捕令'],

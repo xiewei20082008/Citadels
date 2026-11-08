@@ -148,6 +148,9 @@ for (const recipientDuplicate of [false, true]) {
   conserve(world);
   assert.deepEqual(world.players[2].hand, s.players[2].hand, 'Wizard known hand lost in search');
   assert.equal(aiAction(v, 1, { lookahead: false }).build, true);
+  // Determinization samples the warrant hidden from the Wizard. Restore this
+  // fixture's signed target before testing that particular confiscation branch.
+  world.warrants.signed = s.warrants.signed;
   s = move(world, 1, { t: 'wizTake', uid: c.uid, build: true });
   assert.equal(s.turn.pending, null);
   assert.equal(s.turn.built, 0);

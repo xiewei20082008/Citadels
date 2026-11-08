@@ -1,5 +1,13 @@
 // 繁體中文. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.spy": "間諜",
+  "a.spy": "指定建築類型，再查看另一位玩家的手牌。每張符合的牌偷取1金（不超過其金幣），並獲得最多2張牌；目標無金幣也可獲得牌。",
+  "ui.spyReview": "查看過的手牌",
+  "ui.spyHint": "先選擇玩家和建築類型，再查看。最多獲得2張牌，偷取金幣無此上限。",
+  "ui.spySnapshot": "私人快照，僅保留至目前角色回合結束。",
+  "ui.spyEmpty": "手牌為空。",
+  "l.spy": "{name}偵察了{target}（{color}），偷取{gold}金並獲得{n}張牌。",
+  "h.spy": "偵察{name}：{color}",
   "c.magistrate": "裁判官",
   "a.magistrate": "放置三張逮捕令：一張簽署、兩張誘餌。可沒收簽署目標首座付費建築，並退還其金幣。",
   "ui.warrantTitle": "分配逮捕令",

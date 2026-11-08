@@ -1,5 +1,13 @@
 // Français. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.spy": "Espion",
+  "a.spy": "Nommez un type de quartier, puis regardez la main d’un autre joueur. Volez 1 or par correspondance, dans la limite de sa réserve, et gagnez jusqu’à 2 cartes, même sans or à voler.",
+  "ui.spyReview": "Main inspectée",
+  "ui.spyHint": "Choisissez le joueur et le type avant de regarder. Au plus 2 cartes gagnées ; cette limite ne concerne pas l’or volé.",
+  "ui.spySnapshot": "Copie privée disponible jusqu’à la fin du tour de ce personnage.",
+  "ui.spyEmpty": "Cette main est vide.",
+  "l.spy": "{name} espionne {target} ({color}), vole {gold} or et gagne {n} cartes.",
+  "h.spy": "espionner {name} : {color}",
   "c.magistrate": "Magistrat",
   "a.magistrate": "Placez trois mandats : un signé et deux leurres. Confisquez le premier quartier payé de la cible signée et remboursez son or.",
   "ui.warrantTitle": "Assigner les mandats",

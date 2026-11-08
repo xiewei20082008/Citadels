@@ -9,7 +9,7 @@
 //    then samples with a temperature so play stays varied rather than scripted.
 // Cunning is the sole policy; lookahead is disabled only inside simulated rounds.
 
-import { CHAR, COLORS } from './data.js';
+import { CHAR, COLORS, makeDeck } from './data.js';
 import {
   rankOf, has, colorCount, buildCost, canPlace, destroyCost, shielded,
   targetRanks, countsTowardLimit, score, canConfiscate,
@@ -57,6 +57,42 @@ function cardValue(me, card) {
 }
 const buildable = p => p.hand.filter(c => !c.hidden && canPlace(p, c));
 
+// Hypergeometric match distribution: opponents hold samples of the unseen pool.
+// Apply resource caps to each outcome, rather than capping the average matches.
+export function spyRewards(total, matching, hand, gold, deck) {
+  let probabilities = [1];
+  const draws = Math.min(hand, total);
+  for (let d = 0; d < draws; d++) {
+    const next = Array(d + 2).fill(0);
+    for (let k = 0; k <= d; k++) {
+      const hit = Math.max(0, Math.min(1, (matching - k) / (total - d)));
+      next[k + 1] += (probabilities[k] || 0) * hit;
+      next[k] += (probabilities[k] || 0) * (1 - hit);
+    }
+    probabilities = next;
+  }
+  return probabilities.reduce((out, probability, matches) => {
+    out.gold += probability * Math.min(matches, gold);
+    out.cards += probability * Math.min(matches, 2, deck);
+    return out;
+  }, { gold: 0, cards: 0 });
+}
+
+export function spyOptions(v, me) {
+  const known = new Set([...me.hand.filter(c => !c.hidden), ...v.players.flatMap(p => p.city)].map(c => c.uid));
+  const unseen = makeDeck().filter(c => !known.has(c.uid));
+  return v.players.filter(p => p.id !== me.id).flatMap(target => COLORS.map(color => {
+    const reward = spyRewards(unseen.length, unseen.filter(c => c.color === color).length,
+      target.handCount ?? target.hand.length, target.gold, v.deckCount);
+    // Resource units have equal weight. Disruption is bounded at 35% of gold
+    // removed; inspecting a larger hand adds at most 0.15 information value.
+    const threatValue = reward.gold * Math.max(0, Math.min(0.35, (threat(v, target) - threat(v, me)) / 100));
+    const informationValue = 0.15 * Math.min(6, target.handCount ?? target.hand.length) / 6;
+    return { action: { t: 'spy', target: target.id, color, round: v.round },
+      utility: reward.gold + reward.cards + threatValue + informationValue };
+  }));
+}
+
 // Rough value of a whole turn as character `charId` for player p (gold-equivalent).
 function turnValue(v, p, charId) {
   const K = TUNE;
@@ -70,6 +106,7 @@ function turnValue(v, p, charId) {
     case 'magistrate': v0 += 2.5 + (opps.some(q => q.gold >= 4) ? 1 : 0); break;
     case 'assassin': v0 += 1.8 + (Math.max(...opps.map(q => q.city.length)) >= goal - 2 ? 2 : 0); break;
     case 'thief': v0 += Math.max(0, ...opps.map(q => q.gold)) * 0.45; break;
+    case 'spy': v0 += Math.max(0, ...spyOptions(v, p).map(o => o.utility)); break;
     case 'magician': v0 += handN <= 1 ? Math.max(0, ...opps.map(q => (q.handCount ?? q.hand.length))) * 0.7 : 0.8; break;
     case 'king': v0 += v.crown !== p.id ? K.kingCrown : K.kingCrown / 2; break;
     case 'patrician': v0 += colorCount(p, 'yellow') * 0.9 + (v.crown !== p.id ? 1 : 0.4); break;
@@ -266,6 +303,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
 
   if (!T.used.ability) {
     const key = CHAR[T.charId].key;
+    if (key === 'spy') return best(spyOptions(v, me), o => o.utility).action;
     if (key === 'magistrate') return assignWarrants(v, me);
     if (key === 'assassin') {
       const ranks = targetRanks(v, [1]).filter(r => !myRanks.includes(r));
