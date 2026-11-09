@@ -23,6 +23,8 @@ New to Citadels? The home screen has **How to play**, and during a game the **Hi
 
 To play the **Spy**, open **Custom** character selection and choose Spy at rank II instead of the Thief. Name a district type before inspecting another player's hand. Steal one gold per match up to their stash and gain up to two cards, even if they have no gold. The two-card cap is a project variant. The private hand snapshot stays available until the Spy's turn ends.
 
+In **Custom**, choose **Marshal** at rank VIII or **Tax Collector** at rank IX. Marshal pays an opponent the full cost (up to three gold) to seize one eligible district. With Tax Collector in the cast, construction pays one tax from the final owner's remaining gold; its own character turn is exempt. Collect the shared pool once during its turn, or leave it for a later round. Keep and Great Wall retain their existing Warlord-only effects.
+
 ## Features
 
 - **2–7 players**, solo or online.
@@ -47,11 +49,14 @@ Tests:
 node test/engine.test.mjs     # rules self-check + every language covers every string
 node test/spy.test.mjs        # Spy rewards, private inspection, AI expectations and corner cases
 node test/magistrate.test.mjs # warrants and construction interruptions
+node test/tax-marshal.test.mjs # taxes, seizures, corner cases and AI games
 node test/pressure.mjs 600    # pressure test: fairness (AI can't see hidden info), random-move fuzzing, AI behaviour stats
 node test/ai-duel.mjs 400     # Tuned vs baseline Cunning AI win rate
 ```
 
 For a repeatable Spy interface check, open `http://localhost:5173/test/spy-ui.html` while the local server is running. This fixture uses the real HUD and engine with six opponents, including a penniless target holding four trade districts. Check the selection and inspection panels at 393×852 as well as on desktop.
+
+For Marshal targeting and the public tax pool, open `http://localhost:5173/test/tax-marshal-ui.html`. Add `?tax` for collection, `?tax&pending` for warrant/save recovery, or `&lang=de` to inspect translations. Fixture reloads preserve their state within the tab. Review desktop and 393×852 layouts. Save version 5 excludes older saves because they lack persistent tax state.
 
 | File | Role |
 |---|---|

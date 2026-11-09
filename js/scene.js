@@ -765,6 +765,7 @@ export function createScene(canvas, hooks = {}) {
     coins: pid => seats.get(pid)?.coins.localToWorld(V(0, 0.3, 0)) ?? V(),
     cards: pid => seats.get(pid)?.cards.getWorldPosition(V()).add(V(0, 0.3, 0)) ?? V(),
     slot: (pid, uid) => seats.get(pid)?.buildings.get(uid)?.getWorldPosition(V()).add(V(0, 0.5, 0)) ?? V(),
+    plot: pid => seats.get(pid)?.group.localToWorld(V(0, 0.5, 0)) ?? V(),
   };
   function fly(geo, material, from, to, n, { dur = 0.6, stagger = 0.07, arc = 2.2, scale = 1, spin = true } = {}) {
     const all = [];
@@ -806,6 +807,10 @@ export function createScene(canvas, hooks = {}) {
       case 'call': if (ev.pid !== null && !ev.killed) pulseSpot(ev.pid); return;
       case 'round': spot.intensity = 0; return;
       case 'gold': return flyCoins(anchor.bank(), anchor.coins(ev.pid), ev.n);
+      case 'tax': return flyCoins(anchor.coins(ev.pid), anchor.bank(), ev.n);
+      case 'collectTax': return flyCoins(anchor.bank(), anchor.coins(ev.pid), ev.n);
+      case 'seize': return Promise.all([flyCoins(anchor.coins(ev.pid), anchor.coins(ev.target), ev.cost),
+        flyCards(anchor.plot(ev.target), anchor.slot(ev.pid, ev.card.uid), 1)]);
       case 'robbed': return flyCoins(anchor.coins(ev.from), anchor.coins(ev.to), ev.n);
       case 'spy': return Promise.all([flyCoins(anchor.coins(ev.target), anchor.coins(ev.pid), ev.gold), flyCards(anchor.deck(), anchor.cards(ev.pid), ev.n)]);
       case 'tithe': return flyCoins(anchor.coins(ev.from), anchor.coins(ev.to), 1);

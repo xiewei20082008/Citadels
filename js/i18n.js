@@ -38,6 +38,22 @@ export function setLang(l) {
 }
 
 const D = {
+  "c.tax_collector": ["Tax Collector", "税务官"],
+  "a.tax_collector": ["While this character is in the cast, each construction pays 1 gold from the final owner’s remaining stash into the tax pool. Your Tax Collector turn is exempt. Once this turn, you may collect the entire pool; uncollected taxes carry over.", "本局选用税务官时，每次建造后，最终拥有者若有余金，须向税池缴纳1金。税务官自己的角色回合免税。每回合可收取整个税池一次；未收税金保留至以后轮次。"],
+  "c.marshal": ["Marshal", "元帅"],
+  "a.marshal": ["Gain 1 gold per military district at turn start. Once this turn, pay an opponent a district’s full cost (at most 3) to seize it. No duplicates, even with Quarry; completed cities and the living Bishop are protected.", "回合开始时，每座军事建筑获得1金。每回合可按建筑原价（最多3金）付款给对手并夺取该建筑。即使有采石场也不能重复；已完成的城市及未被刺杀的主教受到保护。"],
+  "ui.taxPool": ["Tax pool: {n}", "税池：{n}"],
+  "ui.collectTax": ["Collect {n} gold", "收取{n}金"],
+  "ui.seizeCost": ["Pay owner {n} gold", "付给拥有者{n}金"],
+  "seize.duplicate": ["Already in your city", "城市中已有同名建筑"],
+  "seize.expensive": ["Costs more than 3", "费用超过3金"],
+  "seize.poor": ["Not enough gold", "金币不足"],
+  "seize.go": ["Seize {dist} · {n} gold", "夺取{dist} · {n}金"],
+  "l.tax": ["{name} pays {n} tax (pool: {pool}).", "{name}缴纳{n}金税款（税池：{pool}）。"],
+  "l.collectTax": ["{name} collects {n} gold in taxes.", "{name}收取{n}金税款。"],
+  "l.seize": ["{name} pays {target} {n} gold and seizes {dist}.", "{name}向{target}支付{n}金并夺取{dist}。"],
+  "h.seize": ["seize {dist} from {name}", "从{name}夺取{dist}"],
+  "mo.seized": ["Most seized", "夺取最多"],
   "c.spy": ["Spy","间谍"],
   "a.spy": ["Name a district type, then inspect another player’s hand. Steal 1 gold per match (up to their stash) and gain up to 2 cards, even if they have no gold.","指定建筑类型，再查看另一位玩家的手牌。每张匹配牌偷取1金（不超过其金币），并获得最多2张牌；目标无金币也可获得牌。"],
   "ui.spyReview": ["Inspected hand","查看过的手牌"],

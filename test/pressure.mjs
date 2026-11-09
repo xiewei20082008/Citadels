@@ -16,7 +16,9 @@ const TOTAL = makeDeck().length;
 const SETS = [...Object.entries(PRESETS),
   ['magistrate', [17, 2, 11, 4, 5, 16, 7, 8, 9]],
   ['spy', [1, 18, 3, 4, 5, 6, 7, 8, 9]],
-  ['spy-magistrate', [17, 18, 11, 12, 13, 16, 14, 8, 9]]];
+  ['spy-magistrate', [17, 18, 11, 12, 13, 16, 14, 8, 9]],
+  ['tax-marshal', [1, 2, 3, 4, 5, 6, 7, 20, 19]],
+  ['tax-marshal-variants', [17, 18, 11, 12, 13, 16, 14, 20, 19]]];
 const LEVELS = ['hard'];
 
 // ── 1. twin worlds ───────────────────────────────────────────────────────────
@@ -56,6 +58,9 @@ function candidates(s, pid) {
   if (s.interrupt) return [{ t: 'graveyard', take: true }, { t: 'graveyard', take: false }];
   if (s.phase === 'draft') return s.cfg.chars.flatMap(c => [{ t: 'pick', charId: c }, { t: 'discard', charId: c }]);
   const T = s.turn, P = T.pending;
+  out.push({ t: 'collectTax', round: s.round, charId: T.charId });
+  for (const q of s.players) for (const c of q.city)
+    out.push({ t: 'seize', target: q.id, uid: c.uid, round: s.round, charId: T.charId });
   if (T.charId === 18 && !T.used.ability && !P)
     for (const q of s.players) for (const color of ['yellow', 'blue', 'green', 'red', 'purple'])
       out.push({ t: 'spy', target: q.id, color, round: s.round });
@@ -156,6 +161,7 @@ function play({ n, chars, goal, levels, monkeySeat = -1, seedNo }) {
     assert.equal(inPlay, TOTAL, 'cards conserved');
     assert.equal(new Set([...s.deck, ...s.players.flatMap(p => [...p.hand, ...p.city])].map(c => c.uid)).size, inPlay - (s.turn?.pending?.k === 'keep' ? s.turn.pending.cards.length : 0) - (s.interrupt ? 1 : 0), 'duplicate card');
     s.players.forEach(p => assert.ok(p.gold >= 0 && Number.isInteger(p.gold), 'gold'));
+    assert.ok(s.taxPool >= 0 && Number.isInteger(s.taxPool), 'tax pool');
     if (s.phase === 'turns') {
       const held = s.players.flatMap(p => p.chars);
       assert.equal(new Set(held).size, held.length, 'character held twice');
