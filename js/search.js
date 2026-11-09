@@ -4,9 +4,9 @@
 // everyone, and keep the option that leaves us furthest ahead. Common random numbers: each
 // sample is shared by all options, so they're compared on identical "worlds".
 
-import { act, actInPlace, currentActor, draftOptions, score, viewFor } from './engine.js?v=f9072509';
-import { aiAction, safeAction, holdProbs } from './ai.js?v=f9072509';
-import { makeDeck } from './data.js?v=f9072509';
+import { act, actInPlace, currentActor, draftOptions, score, viewFor } from './engine.js?v=358fecf4';
+import { aiAction, safeAction, holdProbs } from './ai.js?v=358fecf4';
+import { makeDeck } from './data.js?v=358fecf4';
 
 const ALL = makeDeck();
 const SOFT = 0.35; // softmax temperature (points): near-ties vary, clear wins don't. 0.6 cost ~4% win rate.

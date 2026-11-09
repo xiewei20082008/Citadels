@@ -1,13 +1,13 @@
 // Lobby screens: home, solo setup, host room, join room, waiting room.
-import { CHAR, PRESETS, AVATARS } from './data.js?v=f9072509';
-import { t, cname, cabil, getLang, RULES } from './i18n.js?v=f9072509';
-import { svg, ROMAN } from './icons.js?v=f9072509';
-import { sfx } from './sfx.js?v=f9072509';
-import { tutorialSeen } from './tutorial.js?v=f9072509';
+import { CHAR, PRESETS, AVATARS } from './data.js?v=358fecf4';
+import { t, cname, cabil, getLang, RULES } from './i18n.js?v=358fecf4';
+import { svg, ROMAN } from './icons.js?v=358fecf4';
+import { sfx } from './sfx.js?v=358fecf4';
+import { tutorialSeen } from './tutorial.js?v=358fecf4';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const RANK_OPTS = { 1: [1, 17], 2: [2, 18], 3: [3, 11, 15], 4: [4, 12], 5: [5, 13], 6: [6, 16], 7: [7, 10, 14], 8: [8], 9: [9, 0] };
+const RANK_OPTS = { 1: [1, 17], 2: [2, 18], 3: [3, 11, 15], 4: [4, 12], 5: [5, 13], 6: [6, 16], 7: [7, 10, 14], 8: [8, 20], 9: [9, 19, 0] };
 
 function load() {
   try { return JSON.parse(localStorage.getItem('c3d.prefs')) || {}; } catch { return {}; }

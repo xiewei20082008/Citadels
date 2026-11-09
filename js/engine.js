@@ -2,10 +2,10 @@
 // act(state, pid, action) returns a NEW state, or {error} when the move is illegal.
 // Humans, AI and network peers all go through act(), so they play by identical rules.
 
-import { CHAR, COLORS, makeDeck } from './data.js?v=f9072509';
+import { CHAR, COLORS, makeDeck } from './data.js?v=358fecf4';
 
 const MAX_EV = 120;
-export const VERSION = 4; // Spy character and private turn-scoped inspection snapshots
+export const VERSION = 5; // Persistent construction taxes and Marshal acquisitions
 const MAX_ROUNDS = 40; // ponytail: hard stop for degenerate games (empty deck + empty hands)
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -45,6 +45,15 @@ export function canPlace(p, card) {
 export function destroyCost(target, card) {
   return Math.max(0, card.cost - 1) + (has(target, 'great_wall') && card.id !== 'great_wall' ? 1 : 0);
 }
+// Construction tax is paid from the stash left AFTER payment, never borrowed.
+export const taxDue = (s, gold, charId) => s.cfg.chars.includes(19) && charId !== 19 && gold > 0 ? 1 : 0;
+// Separate from construction discounts and Warlord destruction modifiers.
+export const seizureCost = card => card.cost;
+export function seizeError(s, marshal, target, card) {
+  if (!target || target.id === marshal.id || !card || !target.city.some(c => c.uid === card.uid)) return 'bad target';
+  return shielded(s, target) || (has(marshal, card.id) ? 'duplicate' : null) ||
+    (seizureCost(card) > 3 ? 'expensive' : null) || (seizureCost(card) > marshal.gold ? 'poor' : null);
+}
 // Can the current Warlord touch this player's city at all?
 export function shielded(s, target) {
   if (target.city.length >= s.cfg.goal) return 'complete';
@@ -78,7 +87,7 @@ export function createGame(cfg) {
     deck: [], round: 0, phase: 'draft', crown: 0,
     draft: null, call: 0, turn: null, killed: null, robbed: null, robber: null, revealed: [], interrupt: null,
     firstComplete: null, scores: null, winner: null, ev: [], evSeq: 0,
-    warrants: null, constructionSeq: 0,
+    warrants: null, constructionSeq: 0, taxPool: 0,
   };
   s.deck = shuffle(s, makeDeck());
   s.players.forEach(p => { p.hand = draw(s, 4); });
@@ -199,6 +208,18 @@ function place(s, p, card) {
   checkComplete(s, p);
 }
 
+// Only finalized CONSTRUCTION enters here. Seizure must preserve card metadata
+// and must never trigger tax, a warrant, or construction statistics.
+function settleConstruction(s, p, card, charId) {
+  place(s, p, card);
+  const n = taxDue(s, p.gold, charId);
+  if (n) {
+    p.gold -= n; s.taxPool += n;
+    bump(p, 'taxPaid', n);
+    emit(s, 'tax', { pid: p.id, n, pool: s.taxPool });
+  }
+}
+
 // All supported construction actions pay a cost, including card-only Thieves' Den.
 // A future explicit cost-waiver must pass paid=false, independently of goldPaid.
 function construct(s, builder, card, goldPaid, paid = true) {
@@ -210,7 +231,7 @@ function construct(s, builder, card, goldPaid, paid = true) {
     // existence of a response must not identify the signed warrant to peers.
     s.interrupt = { k: 'warrant', pid: w.pid, builder: builder.id, card,
       goldPaid, id: ++s.constructionSeq, round: s.round };
-  } else place(s, builder, card);
+  } else settleConstruction(s, builder, card, s.turn.charId);
 }
 
 export function canConfiscate(s) {
@@ -277,6 +298,7 @@ export function act(state, pid, a) {
 // For AI lookahead only: mutates `s` (skips the defensive copy). May leave `s` half-updated on error.
 export function actInPlace(s, pid, a) {
   if (!a || typeof a !== 'object' || typeof a.t !== 'string') return fail('bad action');
+  if (!Number.isInteger(pid)) return fail('no player');
   try { return actInner(s, pid, a, true); } catch (e) { return fail('internal: ' + (e?.message || e)); }
 }
 
@@ -302,8 +324,8 @@ function actInner(state, pid, a, inPlace = false) {
         builder.gold += I.goldPaid;
         s.warrants.revealed = true;
         emit(s, 'confiscate', { pid, target: builder.id, card: I.card, refund: I.goldPaid });
-        place(s, p, I.card);
-      } else place(s, builder, I.card);
+        settleConstruction(s, p, I.card, 17);
+      } else settleConstruction(s, builder, I.card, s.turn.charId);
       return s;
     }
     if (I.pid !== pid || a.t !== 'graveyard') return fail('waiting for ' + s.players[I.pid].name);
@@ -350,6 +372,34 @@ function actInner(state, pid, a, inPlace = false) {
   let err;
 
   switch (a.t) {
+    case 'collectTax': {
+      if ((err = ability(19))) return fail(err);
+      if (a.round !== s.round || a.charId !== cid || !s.cfg.chars.includes(19) || s.killed === T.rank)
+        return fail('stale or invalid collection');
+      const n = s.taxPool;
+      T.used.ability = true;
+      p.gold += n; s.taxPool = 0;
+      bump(p, 'taxCollected', n);
+      emit(s, 'collectTax', { pid, n });
+      return s;
+    }
+    case 'seize': {
+      if ((err = ability(20))) return fail(err);
+      if (a.round !== s.round || a.charId !== cid || !s.cfg.chars.includes(20) || s.killed === T.rank)
+        return fail('stale or invalid seizure');
+      const target = Number.isInteger(a.target) && s.players[a.target];
+      const card = target && target.city.find(c => c.uid === a.uid);
+      if ((err = seizeError(s, p, target, card))) return fail(err);
+      const cost = seizureCost(card);
+      T.used.ability = true;
+      p.gold -= cost; target.gold += cost;
+      target.city.splice(target.city.findIndex(c => c.uid === card.uid), 1);
+      p.city.push(card);
+      bump(p, 'seized'); bump(target, 'seizedFrom');
+      emit(s, 'seize', { pid, target: target.id, card, cost });
+      checkComplete(s, p);
+      return s;
+    }
     case 'spy': {
       const target = Number.isInteger(a.target) && s.players[a.target];
       if ((err = ability(18, !target || target.id === pid || !COLORS.includes(a.color) || a.round !== s.round

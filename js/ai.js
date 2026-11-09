@@ -9,12 +9,12 @@
 //    then samples with a temperature so play stays varied rather than scripted.
 // Cunning is the sole policy; lookahead is disabled only inside simulated rounds.
 
-import { CHAR, COLORS, makeDeck } from './data.js?v=f9072509';
+import { CHAR, COLORS, makeDeck } from './data.js?v=358fecf4';
 import {
   rankOf, has, colorCount, buildCost, canPlace, destroyCost, shielded,
-  targetRanks, countsTowardLimit, score, canConfiscate,
-} from './engine.js?v=f9072509';
-import { search } from './search.js?v=f9072509';
+  targetRanks, countsTowardLimit, score, canConfiscate, taxDue, seizeError, seizureCost, act,
+} from './engine.js?v=358fecf4';
+import { search } from './search.js?v=358fecf4';
 
 // Lookahead budget for the cunning AI (rollouts per decision); tests may turn it off.
 export const SEARCH = { on: true, budget: 120 };
@@ -115,6 +115,14 @@ function turnValue(v, p, charId) {
     case 'architect': v0 += K.archBase + (handN >= 2 && gold >= 3 ? Math.min(gold, 9) * 0.45 : 0) + (p.city.length >= goal - 3 ? 1.5 : 0); break;
     case 'warlord': v0 += 0.8 + (Math.max(...opps.map(q => q.city.length)) >= goal - 2 ? 2.5 : 0); break;
     case 'queen': v0 += 1.5; break;
+    case 'tax_collector': {
+      // Visible pool plus public construction estimates, discounted for a late,
+      // attractive assassination target. Never treat this as spendable gold.
+      const expected = opps.reduce((n, q) => n + ((q.handCount ?? q.hand.length) > 0 && q.gold >= 2 ? 0.65 : 0.15), 0);
+      v0 += ((v.taxPool || 0) + expected) * 0.8;
+      break;
+    }
+    case 'marshal': v0 += 0.8 + Math.max(0, ...marshalOptions(v, { ...p, gold: gold + income + 2 }).map(o => o.utility)); break;
     case 'navigator': v0 += gold <= 2 || handN === 0 ? 3 : 1.2; v0 -= canBuild * 0.8; break;
     case 'wizard': v0 += 1.8 + (handN <= 1 ? 1 : 0); break;
     case 'seer': v0 += 1.5 + (handN <= 1 ? 1 : 0); break;
@@ -188,7 +196,7 @@ function draftUtility(v, me, c) {
   const leading = threat(v, me) >= Math.max(...opps.map(q => threat(v, q)));
   // danger: juicy characters attract the Assassin and Thief if they're still out there
   const killersOut = v.cfg.chars.some(x => rankOf(x) <= 2 && !v.draft.faceUp.includes(x) && !me.chars.includes(x));
-  if (killersOut && ['merchant', 'king', 'architect', 'trader', 'patrician'].includes(key)) u -= (leading ? 1.1 : 0.6) * K.danger;
+  if (killersOut && ['merchant', 'king', 'architect', 'trader', 'patrician', 'tax_collector'].includes(key)) u -= (leading ? 1.1 : 0.6) * K.danger;
   if (rivalNear && (key === 'assassin' || key === 'warlord')) u += 1.6;
   if (iNear && key === 'bishop') u += leading ? 2.2 : 1;
   if (iNear && key === 'architect' && me.gold >= 4) u += 1.2;
@@ -221,7 +229,8 @@ function bestBuild(v, me) {
       u -= warrantRisk * (u + 1);
       // Prefer an affordable cheap opening only when a second build remains
       // possible even if the Magistrate declines and no refund arrives.
-      if (T.max - T.built > 1 && options.some(d => d !== c && buildCost(me, d) + buildCost(me, c) <= me.gold))
+      if (T.max - T.built > 1 && options.some(d => d !== c && buildCost(me, d) + buildCost(me, c) +
+        taxDue(v, me.gold - buildCost(me, c), T.charId) <= me.gold))
         u += warrantRisk * (7 - buildCost(me, c));
     }
     return u;
@@ -259,6 +268,54 @@ function warlordMove(v, me) {
       const value = damage - cost * 0.85 - (me.gold - cost < 2 ? 0.8 : 0);
       if (value > top) { top = value; pick = { t: 'destroy', target: o.id, uid: d.uid }; }
     }
+  }
+  return pick;
+}
+
+// Shared host eligibility; sorted ties stay deterministic across seats and UIDs.
+export function marshalOptions(v, me) {
+  const before = score(v, me).total;
+  return v.players.filter(p => p.id !== me.id).flatMap(target => target.city.filter(card => !seizeError(v, me, target, card)).map(card => {
+    const cost = seizureCost(card);
+    const after = { ...me, city: [...me.city, card], gold: me.gold - cost };
+    const other = { ...target, city: target.city.filter(c => c.uid !== card.uid), gold: target.gold + cost };
+    const completion = v.firstComplete === null && after.city.length >= v.cfg.goal;
+    const next = { ...v, firstComplete: completion ? me.id : v.firstComplete };
+    let utility = score(next, after).total - before + (score(v, target).total - score(next, other).total) * 0.65 - cost * 0.8 - cost * 0.3;
+    if (completion && v.players.some(p => p.id !== me.id && score(next, p.id === target.id ? other : p).total > score(next, after).total)) utility = -100;
+    return { action: { t: 'seize', target: target.id, uid: card.uid, round: v.round, charId: 20 }, utility };
+  })).sort((a, b) => b.utility - a.utility || a.action.target - b.action.target || a.action.uid.localeCompare(b.action.uid));
+}
+
+function marshalMove(v, me, lookahead) {
+  const b = bestBuild(v, me);
+  const options = marshalOptions(v, me).filter(o => o.utility > 0);
+  const actions = [...options.map(o => o.action), ...(b ? [b] : []), { t: 'end' }];
+  if (lookahead && SEARCH.on && options.length) return search(v, me.id, actions, SEARCH.budget);
+  // Compare both affordable orders using authoritative payments and taxes.
+  // A pending warrant stops the sequence; the next policy call re-plans it.
+  const value = state => {
+    const mine = state.players[me.id];
+    return score(state, mine).total - score(v, me).total + (mine.gold - me.gold) * 0.8 +
+      v.players.filter(p => p.id !== me.id).reduce((u, p) => u +
+        (score(v, p).total - score(state, state.players[p.id]).total) * 0.65 -
+        (state.players[p.id].gold - p.gold) * 0.3, 0);
+  };
+  let pick = { t: 'end' }, top = 0;
+  for (const action of actions.filter(a => a.t !== 'end')) {
+    const next = act(v, me.id, action);
+    if (next.error) continue;
+    let utility = value(next);
+    if (!next.interrupt) {
+      const p = next.players[me.id];
+      const follow = action.t === 'seize' ? [bestBuild(next, p)].filter(Boolean)
+        : marshalOptions(next, p).filter(o => o.utility > 0).map(o => o.action);
+      for (const a of follow) {
+        const last = act(next, me.id, a);
+        if (!last.error) utility = Math.max(utility, value(last));
+      }
+    }
+    if (utility > top) { pick = action; top = utility; }
   }
   return pick;
 }
@@ -303,6 +360,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
 
   if (!T.used.ability) {
     const key = CHAR[T.charId].key;
+    if (key === 'tax_collector' && v.taxPool > 0) return { t: 'collectTax', round: v.round, charId: T.charId };
     if (key === 'spy') return best(spyOptions(v, me), o => o.utility).action;
     if (key === 'magistrate') return assignWarrants(v, me);
     if (key === 'assassin') {
@@ -353,6 +411,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
     if (cardValue(me, j) < 1) return { t: 'lab', uid: j.uid };
   }
 
+  if (T.charId === 20 && !T.used.ability) return marshalMove(v, me, lookahead);
   const b = bestBuild(v, me);
   if (b) return b;
 
