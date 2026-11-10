@@ -3,7 +3,7 @@
 
 import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js';
 import {
-  rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost, charsPerPlayer,
+  rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost,
 } from './engine.js';
 import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js';
 import { svg, ROMAN } from './icons.js';
@@ -796,15 +796,11 @@ export function createUI(ctx) {
         <p class="note">${t('ui.keys')}</p><p class="note">${t('ui.camHint')}</p>`, { cls: 'scroll' });
       wide = true;
     } else if (s === 'journeys') {
-      const per = charsPerPlayer(v.players.length);
-      const rounds = Math.ceil(Math.max(0, ...v.players.map(p => p.played?.length || 0)) / per);
-      const players = [...v.players].sort((a, b) => (v.scores?.find(r => r.pid === b.id)?.total || 0) - (v.scores?.find(r => r.pid === a.id)?.total || 0));
-      html = sheetFrame(t('ov.journey'), `<div class="journey-rounds">${Array.from({ length: rounds }, (_, round) => `
-        <section class="journey-round"><h3>${t('ui.round', { n: round + 1 })}</h3>${players.map(p => `
-          <div class="jr"><span class="jr-who">${avatar(p)}<span class="jr-name">${p.id === v.me ? t('ui.you') : realName(p.id)}</span></span>
-            <div class="jr-chars">${(p.played || []).slice(round * per, (round + 1) * per).map(id => `
-              <button class="btn small ghost journey-character" data-char="${id}" style="--cc:${CHAR[id].color}">${svg(CHAR[id].key)}<span>${ROMAN[CHAR[id].rank]} · ${esc(cname(id))}</span></button>`).join('') || '<span class="muted">—</span>'}</div></div>`).join('')}
-        </section>`).join('')}</div>`, { cls: 'scroll', foot: `<div class="sh-foot"><button class="btn" data-a="journeyBack">${svg('back')}${t('lb.back')}</button></div>` });
+      const rows = [...v.scores].sort((a, b) => b.total - a.total);
+      html = sheetFrame(t('ov.journey'), `<div class="journey-players">${rows.map(r => {
+        const p = P(r.pid);
+        return `<div class="jr" data-pid="${p.id}"><span class="jr-who">${avatar(p)}${p.id === v.me ? t('ui.you') : realName(p.id)}</span><span class="jr-chars">${(p.played || []).map(id => chip(id)).join('')}</span></div>`;
+      }).join('')}</div>`, { cls: 'scroll', foot: `<div class="sh-foot"><button class="btn" data-a="journeyBack">${svg('back')}${t('lb.back')}</button></div>` });
       wide = true;
     } else if (s === 'over') {
       const rows = [...v.scores].sort((a, b) => b.total - a.total);
