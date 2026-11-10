@@ -1,15 +1,15 @@
 // In-game HUD: top bar, call track, seat labels, hand dock, action buttons, sheets (modals),
-// character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM over WebGL.
+// character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM.
 
-import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=358fecf4';
+import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=a295c9dc';
 import {
   rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost,
-} from './engine.js?v=358fecf4';
-import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=358fecf4';
-import { svg, ROMAN } from './icons.js?v=358fecf4';
-import { sfx } from './sfx.js?v=358fecf4';
-import { prefs, alertTurn, vibrate } from './settings.js?v=358fecf4';
-import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=358fecf4';
+} from './engine.js?v=a295c9dc';
+import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=a295c9dc';
+import { svg, ROMAN } from './icons.js?v=a295c9dc';
+import { sfx } from './sfx.js?v=a295c9dc';
+import { prefs, alertTurn, vibrate } from './settings.js?v=a295c9dc';
+import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=a295c9dc';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -41,7 +41,7 @@ export function createUI(ctx) {
     </section>
     <div class="sheet-wrap"><div id="game-sheet" class="sheet" role="dialog" aria-modal="true"></div></div>
     <button class="btn sheet-drawer" data-a="restoreSheet" aria-controls="game-sheet" aria-expanded="false" hidden></button>
-    <div class="tip"></div>`;
+    <div class="tip" role="tooltip" aria-hidden="true"></div>`;
 
   const els = {
     top: $('.topbar', root), labels: $('.labels', root), floaters: $('.floaters', root), toasts: $('.toasts', root),
@@ -71,7 +71,8 @@ export function createUI(ctx) {
   const L = { drawers: [], sel: null, sheet: null, multi: new Set(), inspect: null, log: [], view: null, labelEls: new Map(), hint: null, shown: null };
 
   const insets = () => ctx.scene.setInsets({ top: els.top.offsetHeight + 8, bottom: els.dock.offsetHeight + 8 });
-  new ResizeObserver(insets).observe(els.dock);
+  const hudSize = new ResizeObserver(insets);
+  hudSize.observe(els.top); hudSize.observe(els.dock);
 
   // ── helpers ──
   const P = pid => L.view.players[pid];
@@ -203,7 +204,7 @@ export function createUI(ctx) {
     toast(`💡 ${t('coach.' + key)}`, 'coach', 7000);
   }
 
-  // Numbers that rise from coins / cards / plots in the 3D scene.
+  // Numbers that rise from coins / cards / plots on the board.
   function floater(pid, where, text, tone = '') {
     const p = ctx.scene.screenOf(pid, where);
     if (!p || p.behind || document.hidden) return;
@@ -414,7 +415,7 @@ export function createUI(ctx) {
     const actor = actorOf(view);
     const seen = new Set();
     for (const p of view.players) {
-      if (p.id === view.me) continue;
+      if (p.id === view.me && !ctx.scene.attachLabel) continue;
       seen.add(p.id);
       let el = L.labelEls.get(p.id);
       if (!el) {
@@ -426,6 +427,7 @@ export function createUI(ctx) {
         els.labels.appendChild(el);
         L.labelEls.set(p.id, el);
       }
+      ctx.scene.attachLabel?.(p.id, el);
       const live = view.phase !== 'over' && view.phase !== 'idle';
       el.classList.toggle('active', actor === p.id && live);
       el.classList.toggle('winner', view.phase === 'over' && view.winner === p.id);
@@ -437,17 +439,8 @@ export function createUI(ctx) {
     for (const [pid, el] of L.labelEls) if (!seen.has(pid)) { el.remove(); L.labelEls.delete(pid); }
   }
 
-  // positions labels every frame from the 3D projection; ticks the turn timer
+  // Labels live in each city header. Only the turn countdown needs a tick.
   function frame() {
-    for (const [pid, el] of L.labelEls) {
-      const p = ctx.scene.labelPos(pid);
-      if (!p || p.behind) { el.style.opacity = 0; continue; }
-      const w = el.offsetWidth, h = el.offsetHeight;
-      const x = Math.max(6, Math.min(innerWidth - w - 6, p.x - w / 2));
-      const y = Math.max(els.top.offsetHeight + 4, Math.min(innerHeight - els.dock.offsetHeight - h - 4, p.y - h / 2));
-      el.style.transform = `translate(${x}px, ${y}px)`;
-      el.style.opacity = 1;
-    }
     const tm = els.prompt.querySelector('.timer');
     if (tm) {
       const left = Math.max(0, Math.ceil((+tm.dataset.at - Date.now()) / 1000));
@@ -1050,14 +1043,25 @@ export function createUI(ctx) {
     else if (/^[1-9]$/.test(k)) click(`.hand .card[data-k="${k}"]`);
   });
 
-  // tooltips for cards, chips and 3D buildings
-  function showTip(html, x, y) {
-    els.tip.innerHTML = html;
+  // Hover previews and persistent click/tap details share the same content.
+  function showTip(html, x, y, pinned = false) {
+    if (L.tipPinned && !pinned) return;
+    L.tipPinned = pinned;
+    els.tip.innerHTML = (pinned ? `<button class="tip-close" data-tip-close aria-label="${esc(t('ui.close'))}">${svg('close')}</button>` : '') + html;
+    els.tip.classList.toggle('pinned', pinned);
     els.tip.classList.add('on');
+    els.tip.setAttribute('aria-hidden', 'false');
     const w = els.tip.offsetWidth, h = els.tip.offsetHeight;
-    els.tip.style.transform = `translate(${Math.min(innerWidth - w - 8, Math.max(8, x - w / 2))}px, ${y - h - 14 < 8 ? y + 18 : y - h - 14}px)`;
+    const left = Math.max(8, Math.min(innerWidth - w - 8, x - w / 2));
+    const top = Math.max(8, Math.min(innerHeight - h - 8, y - h - 14 < 8 ? y + 18 : y - h - 14));
+    els.tip.style.transform = `translate(${left}px, ${top}px)`;
   }
-  const hideTip = () => els.tip.classList.remove('on');
+  const hideTip = (force = false) => {
+    if (L.tipPinned && !force) return;
+    L.tipPinned = false;
+    els.tip.classList.remove('on', 'pinned');
+    els.tip.setAttribute('aria-hidden', 'true');
+  };
   const cardTip = card => `<b>${esc(dname(card))}</b> <span class="muted">· ${t('col.' + card.color)} · ${t('ui.cost', { n: card.cost })}</span>${ddesc(card.id) ? `<p>${esc(ddesc(card.id))}</p>` : ''}`;
   const charTip = id => `<b style="color:${CHAR[id].color}">${ROMAN[CHAR[id].rank]} · ${esc(cname(id))}</b><p>${esc(cabil(id))}</p>`;
   root.addEventListener('pointerover', e => {
@@ -1068,31 +1072,38 @@ export function createUI(ctx) {
     if (c) showTip(cardTip({ id: c.dataset.id, color: DIST[c.dataset.id][1], cost: DIST[c.dataset.id][0] }) + (c.dataset.why ? `<p class="warn">${esc(c.dataset.why)}</p>` : ''), r.left + r.width / 2, r.top);
     else showTip(charTip(+ch.dataset.char), r.left + r.width / 2, r.top);
   });
-  root.addEventListener('pointerup', e => {
-    if (e.pointerType === 'mouse') return;
-    const ch = e.target.closest('[data-char]:not(.ccard)');
-    if (!ch) return;
-    const r = ch.getBoundingClientRect();
-    showTip(charTip(+ch.dataset.char), r.left + r.width / 2, r.top);
-    clearTimeout(L.tipTimer); L.tipTimer = setTimeout(hideTip, 3500);
-  });
+  // Capture the anchor before selection handlers replace card/character DOM.
+  // Show after the click finishes, so touch pointer-out and re-renders can't erase it.
+  document.addEventListener('click', e => {
+    if (!root.classList.contains('on')) return;
+    if (els.tip.contains(e.target)) {
+      if (e.target.closest('[data-tip-close]')) hideTip(true);
+      return;
+    }
+    const item = e.target.closest('.card[data-id], .board-building[data-id], [data-char]');
+    if (!item || !(root.contains(item) || document.getElementById('board')?.contains(item))) return hideTip(true);
+    const r = item.getBoundingClientRect();
+    const html = item.dataset.char ? charTip(+item.dataset.char)
+      : cardTip({ id: item.dataset.id, color: DIST[item.dataset.id][1], cost: DIST[item.dataset.id][0] })
+        + (item.dataset.why ? `<p class="warn">${esc(item.dataset.why)}</p>` : '');
+    queueMicrotask(() => { if (root.classList.contains('on')) showTip(html, r.left + r.width / 2, r.top, true); });
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && L.tipPinned) { hideTip(true); e.stopPropagation(); } }, true);
   root.addEventListener('pointerout', e => { if (!e.relatedTarget || !root.contains(e.relatedTarget)) hideTip(); });
-  // subtle 3D tilt on hand cards (desktop)
-  els.hand.addEventListener('pointermove', e => {
-    const c = e.target.closest('.card');
-    if (!c || e.pointerType !== 'mouse') return;
-    const r = c.getBoundingClientRect();
-    c.style.setProperty('--rx', ((e.clientY - r.top) / r.height - 0.5) * -14 + 'deg');
-    c.style.setProperty('--ry', ((e.clientX - r.left) / r.width - 0.5) * 14 + 'deg');
-  });
-
-  // 3D picks
+  // Board picks
   function onPick(h) {
     if (!L.view || !h) return;
-    if (['war', 'marshal'].includes(L.sheet) && h.card) {
-      const tgt = warTargets(L.view, L.sheet === 'marshal').find(x => x.card.uid === h.card.uid && x.ok);
-      if (tgt) { L.warSel = tgt.card.uid; sfx('click'); renderSheet(); return ctx.scene.highlight([tgt.card.uid]); }
+    const hiddenTargeting = !L.sheet && L.drawers.findLast(d => ['war', 'marshal'].includes(d.sheet));
+    const targeting = L.sheet || hiddenTargeting?.sheet;
+    if (['war', 'marshal'].includes(targeting) && h.card) {
+      const tgt = warTargets(L.view, targeting === 'marshal').find(x => x.card.uid === h.card.uid && x.ok);
+      if (tgt) {
+        if (hiddenTargeting) openSheet(targeting);
+        L.warSel = tgt.card.uid; sfx('click'); renderSheet(); return ctx.scene.highlight([tgt.card.uid]);
+      }
     }
+    // Building and character clicks show their details; headers inspect the city.
+    if (h.card || h.charId) return;
     if (h.pid !== null && h.pid !== undefined) {
       L.inspect = h.pid;
       ctx.scene.focus(h.pid);
@@ -1101,6 +1112,7 @@ export function createUI(ctx) {
   }
   function onHover(h, x, y) {
     if (h?.card) showTip(cardTip(h.card), x, y);
+    else if (h?.charId) showTip(charTip(h.charId), x, y);
     else hideTip();
   }
 
@@ -1108,7 +1120,7 @@ export function createUI(ctx) {
     render, event, frame, toast, onPick, onHover, showEmote,
     relang() { chrome(); if (L.view) render(L.view); },
     show() { root.classList.add('on'); insets(); },
-    hide() { root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(); },
+    hide() { root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(true); },
     resetLog() { L.log = []; L.evShown = undefined; L.shown = null; L.spySeen = null; },
   };
 }

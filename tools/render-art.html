@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>District artwork generator</title>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
+</script>
+<script type="module">
+import { renderThumbs } from '../js/models.js';
+import { DIST_IDS } from '../js/data.js';
+window.artwork = renderThumbs(DIST_IDS, 320, 'image/webp');
+</script>
+</html>

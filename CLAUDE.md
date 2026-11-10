@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Citadels 3D: a browser card game (Three.js tabletop, vanilla ES modules, no build step). See [README.md](README.md).
+Citadels: a browser card game (2D miniature board, vanilla ES modules, no build step). See [README.md](README.md).
 
 ## Run & test
 
@@ -13,7 +13,7 @@ node test/pressure.mjs 600     # fairness (hidden info), random-move fuzzing, AI
 node test/ai-duel.mjs 400      # Tuned vs baseline Cunning win rate
 ```
 
-Three.js and PeerJS load from CDNs (importmap in `index.html`), so the first load needs internet.
+PeerJS loads from a CDN for online play. Three.js is used only by the offline artwork tool (`tools/render-art.html`); the game loads checked-in building images and needs no WebGL.
 
 ## Architecture rules
 
@@ -25,7 +25,7 @@ Three.js and PeerJS load from CDNs (importmap in `index.html`), so the first loa
 - **Multiplayer is host-authoritative** (`js/main.js` + `js/net.js`): the host runs `act()` and sends each
   seat its own `viewFor`. Peers only send actions.
 - `js/main.js` is the controller (state flow, AI pacing, event playback, saves); `js/ui.js` renders the HUD
-  from a view; `js/scene.js` renders the 3D table from a view and plays event effects.
+  from a view; `js/scene.js` renders the 2D miniature board from a view and plays event effects.
 - `js/settings.js` owns player preferences (`prefs`, saved in localStorage) and the ⚙️ panel used by both the lobby
   and the game; `js/sfx.js` synthesizes all sound, including the four generative music tracks (`TRACKS`).
 - `js/tutorial.js` is the guided first game (spotlight + bubble, steps advance on the player's own actions).

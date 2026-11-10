@@ -291,7 +291,7 @@ export default {
   'ui.qualityLow': '已為此裝置切換至流暢畫質。',
   'ui.keys': '快捷鍵 —— G 拿金 · D 摸牌 · B 建造 · A 技能 · E 結束 · H 提示 · 1–9 選牌',
   'ui.react': '表情',
-  'ui.camHint': '拖動旋轉視角 · 滾輪或雙指縮放',
+  'ui.camHint': '點擊城市查看詳情 · 點擊總覽查看所有城市',
   'ui.resetView': '重設視角',
   'ui.rejoined': '{name} 回來了。',
   'ui.error': '出了點問題——對局已儲存。',
@@ -299,7 +299,7 @@ export default {
   'coach.draft': '秘密挑選一個角色。角色按等級（I → IX）依次行動，各有技能——懸停可查看說明。',
   'coach.turn': '輪到你了！先拿 2 金或摸牌，再建造付得起的建築。拿不準？點「提示」。',
   'coach.call': '宮廷按 I 到 IX 依次召見角色——留意頂部的順序條。',
-  'coach.cam': '拖動桌面旋轉視角 · 點擊城市查看詳情。',
+  'coach.cam': '點擊城市查看詳情 · 點擊總覽查看所有城市。',
 
   // settings
   'set.title': '設定',

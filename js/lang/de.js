@@ -291,7 +291,7 @@ export default {
   'ui.qualityLow': 'Für dieses Gerät auf flüssige Grafik umgestellt.',
   'ui.keys': 'Tasten — G Gold · D ziehen · B bauen · A Fähigkeit · E Ende · H Tipp · 1–9 Karten',
   'ui.react': 'Reagieren',
-  'ui.camHint': 'Ziehen zum Drehen · Mausrad oder Zwei-Finger-Geste zum Zoomen',
+  'ui.camHint': 'Stadt antippen zum Ansehen · Übersicht zeigt alle Städte',
   'ui.resetView': 'Ansicht zurücksetzen',
   'ui.rejoined': '{name} ist zurück.',
   'ui.error': 'Etwas ist schiefgelaufen – dein Spiel ist gespeichert.',
@@ -299,7 +299,7 @@ export default {
   'coach.draft': 'Wähle geheim eine Figur. Figuren handeln nach Rang (I → IX) und haben je eine Fähigkeit – fahre über eine Karte, um sie zu lesen.',
   'coach.turn': 'Dein Zug! Nimm zuerst 2 Gold oder ziehe Karten, dann baue ein Gebäude, das du bezahlen kannst. Unsicher? Tippe auf Tipp.',
   'coach.call': 'Der Hof ruft die Figuren von I bis IX auf – folge der Leiste oben.',
-  'coach.cam': 'Ziehe den Tisch, um dich umzusehen · tippe eine Stadt an, um sie anzusehen.',
+  'coach.cam': 'Tippe eine Stadt an, um sie anzusehen · die Übersicht zeigt alle Städte.',
 
   // settings
   'set.title': 'Einstellungen',

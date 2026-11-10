@@ -1,15 +1,15 @@
 // English + Chinese live in the table below; other languages are one file each in ./lang/ (missing keys
 // fall back to English). t('key', {vars}) — '{name}' placeholders.
-import { CHAR } from './data.js?v=358fecf4';
-import ja from './lang/ja.js?v=358fecf4';
-import ko from './lang/ko.js?v=358fecf4';
-import es from './lang/es.js?v=358fecf4';
-import fr from './lang/fr.js?v=358fecf4';
-import zhTW from './lang/zh-TW.js?v=358fecf4';
-import de from './lang/de.js?v=358fecf4';
-import pt from './lang/pt.js?v=358fecf4';
-import ru from './lang/ru.js?v=358fecf4';
-import it from './lang/it.js?v=358fecf4';
+import { CHAR } from './data.js?v=a295c9dc';
+import ja from './lang/ja.js?v=a295c9dc';
+import ko from './lang/ko.js?v=a295c9dc';
+import es from './lang/es.js?v=a295c9dc';
+import fr from './lang/fr.js?v=a295c9dc';
+import zhTW from './lang/zh-TW.js?v=a295c9dc';
+import de from './lang/de.js?v=a295c9dc';
+import pt from './lang/pt.js?v=a295c9dc';
+import ru from './lang/ru.js?v=a295c9dc';
+import it from './lang/it.js?v=a295c9dc';
 
 export const EXTRA = { 'zh-TW': zhTW, ja, ko, es, fr, de, pt, ru, it };
 export const LANGS = {
@@ -336,7 +336,7 @@ const D = {
   'ui.qualityLow': ['Switched to smooth graphics for this device.', '已为此设备切换至流畅画质。'],
   'ui.keys': ['Keys — G gold · D draw · B build · A ability · E end · H hint · 1–9 cards', '快捷键 —— G 拿金 · D 摸牌 · B 建造 · A 技能 · E 结束 · H 提示 · 1–9 选牌'],
   'ui.react': ['React', '表情'],
-  'ui.camHint': ['Drag to orbit · scroll or pinch to zoom', '拖动旋转视角 · 滚轮或双指缩放'],
+  'ui.camHint': ['Tap a city to inspect it · use Overview to see all cities', '点击城市查看详情 · 点击总览查看所有城市'],
   'ui.resetView': ['Reset view', '重置视角'],
   'ui.rejoined': ['{name} is back.', '{name} 回来了。'],
   'ui.error': ['Something went wrong — your game is saved.', '出了点问题——对局已保存。'],
@@ -344,7 +344,7 @@ const D = {
   'coach.draft': ['Choose a character in secret. Characters act in rank order (I → IX) and each has a power — hover a card to read it.', '秘密挑选一个角色。角色按等级（I → IX）依次行动，各有技能——悬停可查看说明。'],
   'coach.turn': ['Your turn! First take 2 gold or draw cards, then build a district you can afford. Unsure? Tap Hint.', '轮到你了！先拿 2 金或摸牌，再建造付得起的建筑。拿不准？点「提示」。'],
   'coach.call': ['The court calls characters from I to IX — follow the track at the top.', '宫廷按 I 到 IX 依次召见角色——留意顶部的顺序条。'],
-  'coach.cam': ['Drag the table to look around · tap a city to inspect it.', '拖动桌面旋转视角 · 点击城市查看详情。'],
+  'coach.cam': ['Tap a city to inspect it · use Overview to see all cities.', '点击城市查看详情 · 点击总览查看所有城市。'],
 
   // settings
   'set.title': ['Settings', '设置'],

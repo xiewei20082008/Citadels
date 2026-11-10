@@ -1,12 +1,12 @@
-// Procedural miniature buildings — one recipe per district. Each building's geometry is merged
-// per material (3–6 draw calls), built once, then cloned. The same models are rendered to
-// images for card art, so a card and the building on the table always match.
+// Offline artwork source: procedural miniature buildings, one recipe per district.
+// tools/render-art.html bakes these models into the images used by cards and the
+// 2D board. This module and Three.js are never imported by the running game.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { HUE, DIST } from './data.js?v=358fecf4';
-import { pattern, warmEnvironment } from './materials.js?v=358fecf4';
+import { HUE, DIST } from './data.js?v=a295c9dc';
+import { pattern, warmEnvironment } from './materials.js?v=a295c9dc';
 
 const MAT = {};
 const std = o => new THREE.MeshStandardMaterial(o);
@@ -316,7 +316,7 @@ export function makeBuilding(id) {
 }
 
 // ── card art: render each district once into a transparent PNG ─────────────
-export async function renderThumbs(ids, size = 320) {
+export async function renderThumbs(ids, size = 320, format = 'image/png') {
   const canvas = document.createElement('canvas');
   const r = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
   r.setSize(size, size, false);
@@ -353,7 +353,7 @@ export async function renderThumbs(ids, size = 320) {
     cam.position.set(2.2, 1.7 + h * 0.45, 3.0).normalize().multiplyScalar(3.4 + h * 0.75).add(new THREE.Vector3(0, h * 0.1, 0));
     cam.lookAt(target);
     r.render(scene, cam);
-    out[id] = canvas.toDataURL('image/png');
+    out[id] = canvas.toDataURL(format, 0.9);
     scene.remove(m);
     await new Promise(r => (document.hidden ? setTimeout(r, 0) : requestAnimationFrame(r))); // rAF never fires in background tabs
   }

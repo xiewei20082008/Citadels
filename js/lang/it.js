@@ -291,7 +291,7 @@ export default {
   'ui.qualityLow': 'Grafica fluida attivata per questo dispositivo.',
   'ui.keys': 'Tasti — G oro · D pesca · B costruisci · A abilità · E fine · H suggerimento · 1–9 carte',
   'ui.react': 'Reagisci',
-  'ui.camHint': 'Trascina per ruotare · rotella o pizzico per lo zoom',
+  'ui.camHint': 'Tocca una città per esaminarla · la panoramica mostra tutte le città',
   'ui.resetView': 'Ripristina vista',
   'ui.rejoined': '{name} è tornato.',
   'ui.error': 'Qualcosa è andato storto: la partita è salvata.',
@@ -299,7 +299,7 @@ export default {
   'coach.draft': 'Scegli un personaggio in segreto. I personaggi agiscono per rango (I → IX) e ognuno ha un potere: passa sopra una carta per leggerlo.',
   'coach.turn': 'Tocca a te! Prima prendi 2 oro o pesca carte, poi costruisci un quartiere che puoi pagare. Dubbi? Tocca Suggerimento.',
   'coach.call': 'La corte chiama i personaggi dal I al IX: segui la barra in alto.',
-  'coach.cam': 'Trascina il tavolo per guardarti intorno · tocca una città per esaminarla.',
+  'coach.cam': 'Tocca una città per esaminarla · la panoramica mostra tutte le città.',
 
   // settings
   'set.title': 'Impostazioni',
