@@ -157,13 +157,19 @@ try {
     await page.locator('.journey-sheet').waitFor();
     assert.equal(await page.locator('.over-sheet').count(), 0, 'recap has a separate view');
     assert.equal(await page.locator('[data-a="restoreSheet"]:visible').count(), 0, 'parent results drawer stays hidden in the recap');
-    assert.equal(await page.locator('.journey-round').count(), 12);
-    assert.equal(await page.locator('.journey-round').first().locator('.jr').count(), players);
-    assert.equal(await page.locator('.journey-round').first().locator('.journey-character').count(), players <= 3 ? players * 2 : players);
+    assert.equal(await page.locator('.journey-round').count(), 0, 'keep the original player-by-player display');
+    assert.equal(await page.locator('.journey-players > .jr').count(), players);
+    const expectedHistory = await page.evaluate(() => [...window.fixture.state.scores].sort((a, b) => b.total - a.total).map(r => ({
+      pid: r.pid, played: window.fixture.state.players[r.pid].played,
+    })));
+    const actualHistory = await page.locator('.journey-players > .jr').evaluateAll(rows => rows.map(row => ({
+      pid: +row.dataset.pid, played: [...row.querySelectorAll('.chip[data-char]')].map(chip => +chip.dataset.char),
+    })));
+    assert.deepEqual(actualHistory, expectedHistory, 'preserve score order and each player’s complete character sequence');
     const bounds = await page.locator('.journey-sheet').boundingBox();
     assert.ok(bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= width && bounds.y + bounds.height <= height, 'recap dialog fits the viewport');
     if (screenshots) await page.screenshot({ path: `${screenshots}/${name}.png`, animations: 'disabled' });
-    const entry = page.locator('.journey-character').first();
+    const entry = page.locator('.journey-players .chip[data-char]').first();
     const id = +(await entry.getAttribute('data-char'));
     const ability = await page.evaluate(async id => (await import('/js/i18n.js')).cabil(id), id);
     await entry.tap();

@@ -2,7 +2,7 @@
 // act(state, pid, action) returns a NEW state, or {error} when the move is illegal.
 // Humans, AI and network peers all go through act(), so they play by identical rules.
 
-import { CHAR, COLORS, makeDeck } from './data.js?v=45d44b46';
+import { CHAR, COLORS, makeDeck } from './data.js?v=ec8020af';
 
 const MAX_EV = 120;
 export const VERSION = 5; // Persistent construction taxes and Marshal acquisitions
