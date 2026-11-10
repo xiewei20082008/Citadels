@@ -25,6 +25,7 @@ function give(pid, id, zone = 'city') {
   state.players[pid][zone].push(state.deck.splice(i, 1)[0]);
 }
 give(0, 'manor'); give(0, 'market', 'hand'); give(1, 'temple'); give(1, 'tavern');
+if (params.has('details')) give(0, 'quarry', 'hand');
 state.players.slice(2).forEach(p => {
   for (let i = 0; i < 5; i++) p.city.push(state.deck.shift());
 });

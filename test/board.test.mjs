@@ -94,6 +94,59 @@ try {
     await page.close();
   }
 
+  // Real taps (not mouse clicks) reveal effects without hover, including cards
+  // re-created by the selection handler and character chips in board headers.
+  for (const [width, height] of [[1024, 768], [393, 852]]) {
+    const page = await pageFor(width, height);
+    await page.goto(url + '/test/board-ui.html?details');
+    await page.waitForFunction(() => !!window.fixture);
+    const expected = await page.evaluate(async () => {
+      const { cabil, ddesc } = await import('/js/i18n.js');
+      return { skill: cabil(8), assassin: cabil(1), quarry: ddesc('quarry') };
+    });
+    const tip = page.locator('.tip.on.pinned');
+    await page.locator('.hand .card[data-id="quarry"]').tap();
+    assert.ok((await tip.innerText()).includes(expected.quarry), 'hand district effect');
+    assert.equal(await page.locator('.hand .card.sel[data-id="quarry"]').count(), 1, 'tap still selects hand card');
+    await page.locator('.hand .card[data-id="quarry"]').dispatchEvent('pointerout', { pointerType: 'touch' });
+    assert.equal(await tip.count(), 1, 'touch pointer-out must not dismiss details');
+    await page.locator('.calltrack [data-char="8"]').tap();
+    assert.ok((await tip.innerText()).includes(expected.skill), 'call-track character skill');
+    await page.locator('[data-tip-close]').tap();
+    assert.equal(await page.locator('.tip.on').count(), 0, 'explicit close');
+
+    const purple = await page.evaluate(() => window.fixture.state.players.flatMap(p => p.city).find(c => c.color === 'purple'));
+    await page.locator(`.board-building[data-uid="${purple.uid}"]`).tap();
+    const effect = await page.evaluate(async id => (await import('/js/i18n.js')).ddesc(id), purple.id);
+    assert.ok((await tip.innerText()).includes(effect), 'board district effect');
+    assert.equal(await page.locator('.sheet-wrap.open').count(), 0, 'building tap shows details directly');
+    const bounds = await tip.boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= width && bounds.y + bounds.height <= height, 'details fit the viewport');
+    await page.locator('[data-a="overview"]').tap();
+    assert.equal(await page.locator('.tip.on').count(), 0, 'tap elsewhere dismisses details');
+
+    if (width > 760) {
+      await page.locator('.board-city[data-pid="1"] [data-char="1"]').tap();
+      assert.ok((await tip.innerText()).includes(expected.assassin), 'board-header character skill');
+      assert.equal(await page.evaluate(() => window.fixture.scene.focused), null, 'character tap must not inspect the city');
+      await page.locator('[data-tip-close]').tap();
+    }
+    const pid = await page.evaluate(uid => window.fixture.state.players.find(p => p.city.some(c => c.uid === uid)).id, purple.uid);
+    await page.locator(`.board-city[data-pid="${pid}"] .s-name`).tap();
+    await page.locator(`.sheet .card[data-id="${purple.id}"]`).tap();
+    assert.ok((await tip.innerText()).includes(effect), 'inspected-city district effect');
+    await page.locator('[data-tip-close]').tap();
+    await page.locator('.sheet [data-a="close"]').tap();
+    await page.locator('[data-a="sheet"][data-v="rules"]').tap();
+    await page.locator('.sheet .ccard[data-char="8"]').tap();
+    assert.ok((await tip.innerText()).includes(expected.skill), 'full skill on compact character card');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.tip.on').count(), 0, 'Escape dismisses details');
+    assert.equal(await page.locator('.sheet-wrap.open').count(), 1, 'Escape dismisses details before its parent sheet');
+    assert.equal(await page.evaluate(() => window.fixture.state.turn.charId), 8, 'detail taps leave the turn intact');
+    await page.close();
+  }
+
   // Real app boot, solo setup, settings and saved-game recovery without WebGL/CDNs.
   const page = await pageFor(1024, 768);
   const requests = [];
@@ -117,7 +170,7 @@ try {
   assert.ok(!requests.some(u => /models\.js|materials\.js|three(@|\/)/.test(u)), 'runtime loads authoring code');
   assert.deepEqual(errors, [], 'browser errors');
   await page.close();
-  console.log(`ok — ${DIST_IDS.length} baked assets; 4 layouts; build, inspect, destroy, seize, language, save recovery; WebGL blocked`);
+  console.log(`ok — ${DIST_IDS.length} baked assets; 4 layouts; touch details, build, inspect, destroy, seize, language, save recovery; WebGL blocked`);
 } finally {
   await browser.close();
 }

@@ -412,6 +412,9 @@ svg.ico { width: 1.25em; height: 1.25em; flex: none; }
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
 .tip.on { opacity: 1; }
+.tip.pinned { pointer-events: auto; background: #131824; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow-y: auto; padding-right: 42px; }
+.tip-close { position: absolute; top: 4px; right: 4px; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 6px; background: #ffffff0d; color: var(--ink); cursor: pointer; }
+.tip-close:focus-visible { outline: 2px solid var(--gold); }
 .tip p { margin: 4px 0 0; color: var(--ink-2); }
 .tip .warn { color: #f0a59b; }
 

@@ -56,7 +56,7 @@ export function createScene(root, hooks = {}) {
         let el = s.buildings.get(card.uid);
         if (!el) {
           el = document.createElement('button');
-          el.type = 'button'; el.className = 'board-building'; el.dataset.uid = card.uid;
+          el.type = 'button'; el.className = 'board-building'; el.dataset.uid = card.uid; el.dataset.id = card.id;
           el.style.setProperty('--district', HUE[card.color]);
           const img = document.createElement('img');
           img.src = new URL(`../assets/districts/${card.id}.webp`, import.meta.url).href;

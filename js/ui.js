@@ -41,7 +41,7 @@ export function createUI(ctx) {
     </section>
     <div class="sheet-wrap"><div id="game-sheet" class="sheet" role="dialog" aria-modal="true"></div></div>
     <button class="btn sheet-drawer" data-a="restoreSheet" aria-controls="game-sheet" aria-expanded="false" hidden></button>
-    <div class="tip"></div>`;
+    <div class="tip" role="tooltip" aria-hidden="true"></div>`;
 
   const els = {
     top: $('.topbar', root), labels: $('.labels', root), floaters: $('.floaters', root), toasts: $('.toasts', root),
@@ -1043,14 +1043,25 @@ export function createUI(ctx) {
     else if (/^[1-9]$/.test(k)) click(`.hand .card[data-k="${k}"]`);
   });
 
-  // tooltips for cards, chips and 3D buildings
-  function showTip(html, x, y) {
-    els.tip.innerHTML = html;
+  // Hover previews and persistent click/tap details share the same content.
+  function showTip(html, x, y, pinned = false) {
+    if (L.tipPinned && !pinned) return;
+    L.tipPinned = pinned;
+    els.tip.innerHTML = (pinned ? `<button class="tip-close" data-tip-close aria-label="${esc(t('ui.close'))}">${svg('close')}</button>` : '') + html;
+    els.tip.classList.toggle('pinned', pinned);
     els.tip.classList.add('on');
+    els.tip.setAttribute('aria-hidden', 'false');
     const w = els.tip.offsetWidth, h = els.tip.offsetHeight;
-    els.tip.style.transform = `translate(${Math.min(innerWidth - w - 8, Math.max(8, x - w / 2))}px, ${y - h - 14 < 8 ? y + 18 : y - h - 14}px)`;
+    const left = Math.max(8, Math.min(innerWidth - w - 8, x - w / 2));
+    const top = Math.max(8, Math.min(innerHeight - h - 8, y - h - 14 < 8 ? y + 18 : y - h - 14));
+    els.tip.style.transform = `translate(${left}px, ${top}px)`;
   }
-  const hideTip = () => els.tip.classList.remove('on');
+  const hideTip = (force = false) => {
+    if (L.tipPinned && !force) return;
+    L.tipPinned = false;
+    els.tip.classList.remove('on', 'pinned');
+    els.tip.setAttribute('aria-hidden', 'true');
+  };
   const cardTip = card => `<b>${esc(dname(card))}</b> <span class="muted">· ${t('col.' + card.color)} · ${t('ui.cost', { n: card.cost })}</span>${ddesc(card.id) ? `<p>${esc(ddesc(card.id))}</p>` : ''}`;
   const charTip = id => `<b style="color:${CHAR[id].color}">${ROMAN[CHAR[id].rank]} · ${esc(cname(id))}</b><p>${esc(cabil(id))}</p>`;
   root.addEventListener('pointerover', e => {
@@ -1061,14 +1072,23 @@ export function createUI(ctx) {
     if (c) showTip(cardTip({ id: c.dataset.id, color: DIST[c.dataset.id][1], cost: DIST[c.dataset.id][0] }) + (c.dataset.why ? `<p class="warn">${esc(c.dataset.why)}</p>` : ''), r.left + r.width / 2, r.top);
     else showTip(charTip(+ch.dataset.char), r.left + r.width / 2, r.top);
   });
-  root.addEventListener('pointerup', e => {
-    if (e.pointerType === 'mouse') return;
-    const ch = e.target.closest('[data-char]:not(.ccard)');
-    if (!ch) return;
-    const r = ch.getBoundingClientRect();
-    showTip(charTip(+ch.dataset.char), r.left + r.width / 2, r.top);
-    clearTimeout(L.tipTimer); L.tipTimer = setTimeout(hideTip, 3500);
-  });
+  // Capture the anchor before selection handlers replace card/character DOM.
+  // Show after the click finishes, so touch pointer-out and re-renders can't erase it.
+  document.addEventListener('click', e => {
+    if (!root.classList.contains('on')) return;
+    if (els.tip.contains(e.target)) {
+      if (e.target.closest('[data-tip-close]')) hideTip(true);
+      return;
+    }
+    const item = e.target.closest('.card[data-id], .board-building[data-id], [data-char]');
+    if (!item || !(root.contains(item) || document.getElementById('board')?.contains(item))) return hideTip(true);
+    const r = item.getBoundingClientRect();
+    const html = item.dataset.char ? charTip(+item.dataset.char)
+      : cardTip({ id: item.dataset.id, color: DIST[item.dataset.id][1], cost: DIST[item.dataset.id][0] })
+        + (item.dataset.why ? `<p class="warn">${esc(item.dataset.why)}</p>` : '');
+    queueMicrotask(() => { if (root.classList.contains('on')) showTip(html, r.left + r.width / 2, r.top, true); });
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && L.tipPinned) { hideTip(true); e.stopPropagation(); } }, true);
   root.addEventListener('pointerout', e => { if (!e.relatedTarget || !root.contains(e.relatedTarget)) hideTip(); });
   // Board picks
   function onPick(h) {
@@ -1082,6 +1102,8 @@ export function createUI(ctx) {
         L.warSel = tgt.card.uid; sfx('click'); renderSheet(); return ctx.scene.highlight([tgt.card.uid]);
       }
     }
+    // Building and character clicks show their details; headers inspect the city.
+    if (h.card || h.charId) return;
     if (h.pid !== null && h.pid !== undefined) {
       L.inspect = h.pid;
       ctx.scene.focus(h.pid);
@@ -1098,7 +1120,7 @@ export function createUI(ctx) {
     render, event, frame, toast, onPick, onHover, showEmote,
     relang() { chrome(); if (L.view) render(L.view); },
     show() { root.classList.add('on'); insets(); },
-    hide() { root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(); },
+    hide() { root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(true); },
     resetLog() { L.log = []; L.evShown = undefined; L.shown = null; L.spySeen = null; },
   };
 }
