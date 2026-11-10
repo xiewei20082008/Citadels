@@ -147,6 +147,40 @@ try {
     await page.close();
   }
 
+  // The result recap opens its own dialog and returns to the results on close.
+  for (const [name, width, height, players] of [['journey-tablet', 1024, 768, 7], ['journey-phone', 393, 852, 7], ['journey-two-player', 1024, 768, 2]]) {
+    const page = await pageFor(width, height);
+    await page.goto(url + `/test/board-ui.html?over&players=${players}`);
+    await page.locator('.over-sheet').waitFor();
+    assert.equal(await page.locator('details.journeys').count(), 0, 'recap must not be an inline dropdown');
+    await page.locator('[data-a="journey"]').tap();
+    await page.locator('.journey-sheet').waitFor();
+    assert.equal(await page.locator('.over-sheet').count(), 0, 'recap has a separate view');
+    assert.equal(await page.locator('[data-a="restoreSheet"]:visible').count(), 0, 'parent results drawer stays hidden in the recap');
+    assert.equal(await page.locator('.journey-round').count(), 12);
+    assert.equal(await page.locator('.journey-round').first().locator('.jr').count(), players);
+    assert.equal(await page.locator('.journey-round').first().locator('.journey-character').count(), players <= 3 ? players * 2 : players);
+    const bounds = await page.locator('.journey-sheet').boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= width && bounds.y + bounds.height <= height, 'recap dialog fits the viewport');
+    if (screenshots) await page.screenshot({ path: `${screenshots}/${name}.png`, animations: 'disabled' });
+    const entry = page.locator('.journey-character').first();
+    const id = +(await entry.getAttribute('data-char'));
+    const ability = await page.evaluate(async id => (await import('/js/i18n.js')).cabil(id), id);
+    await entry.tap();
+    assert.ok((await page.locator('.tip.on.pinned').innerText()).includes(ability), 'recap characters show their skill on tap');
+    await page.locator('[data-tip-close]').tap();
+    await page.locator('[data-a="journeyBack"]').tap();
+    assert.equal(await page.locator('.over-sheet .score').count(), 1, 'Back restores scores');
+    await page.locator('[data-a="journey"]').tap();
+    await page.locator('.journey-sheet [data-a="close"]').tap();
+    assert.equal(await page.locator('.over-sheet .score').count(), 1, 'Close restores scores');
+    await page.locator('[data-a="journey"]').tap();
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.over-sheet .score').count(), 1, 'Escape restores scores');
+    assert.equal(await page.locator('[data-a="restoreSheet"]:visible').count(), 0, 'no abandoned recap drawer');
+    await page.close();
+  }
+
   // Real app boot, solo setup, settings and saved-game recovery without WebGL/CDNs.
   const page = await pageFor(1024, 768);
   const requests = [];
@@ -170,7 +204,7 @@ try {
   assert.ok(!requests.some(u => /models\.js|materials\.js|three(@|\/)/.test(u)), 'runtime loads authoring code');
   assert.deepEqual(errors, [], 'browser errors');
   await page.close();
-  console.log(`ok — ${DIST_IDS.length} baked assets; 4 layouts; touch details, build, inspect, destroy, seize, language, save recovery; WebGL blocked`);
+  console.log(`ok — ${DIST_IDS.length} baked assets; 4 layouts; touch details, recap dialog, build, inspect, destroy, seize, language, save recovery; WebGL blocked`);
 } finally {
   await browser.close();
 }

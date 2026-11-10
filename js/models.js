@@ -5,8 +5,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { HUE, DIST } from './data.js?v=a295c9dc';
-import { pattern, warmEnvironment } from './materials.js?v=a295c9dc';
+import { HUE, DIST } from './data.js?v=45d44b46';
+import { pattern, warmEnvironment } from './materials.js?v=45d44b46';
 
 const MAT = {};
 const std = o => new THREE.MeshStandardMaterial(o);

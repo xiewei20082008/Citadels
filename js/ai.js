@@ -9,12 +9,12 @@
 //    then samples with a temperature so play stays varied rather than scripted.
 // Cunning is the sole policy; lookahead is disabled only inside simulated rounds.
 
-import { CHAR, COLORS, makeDeck } from './data.js?v=a295c9dc';
+import { CHAR, COLORS, makeDeck } from './data.js?v=45d44b46';
 import {
   rankOf, has, colorCount, buildCost, canPlace, destroyCost, shielded,
   targetRanks, countsTowardLimit, score, canConfiscate, taxDue, seizeError, seizureCost, act,
-} from './engine.js?v=a295c9dc';
-import { search } from './search.js?v=a295c9dc';
+} from './engine.js?v=45d44b46';
+import { search } from './search.js?v=45d44b46';
 
 // Lookahead budget for the cunning AI (rollouts per decision); tests may turn it off.
 export const SEARCH = { on: true, budget: 120 };
