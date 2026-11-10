@@ -9,7 +9,7 @@
 <script type="module">
 import { createScene } from '../js/scene.js';
 import { createUI } from '../js/ui.js';
-import { createGame, act, viewFor, buildLimit } from '../js/engine.js';
+import { createGame, act, viewFor, buildLimit, charsPerPlayer, score } from '../js/engine.js';
 import { DIST_IDS } from '../js/data.js';
 import { setLang } from '../js/i18n.js';
 const params = new URLSearchParams(location.search);
@@ -31,6 +31,12 @@ state.players.slice(2).forEach(p => {
 });
 state.phase = 'turns'; state.call = 8; state.revealed = state.cfg.chars;
 state.turn = { pid: 0, charId: cid, rank: 8, income: true, built: 0, paidBuild: false, max: buildLimit(cid), used: {}, pending: null };
+if (params.has('over')) {
+  state.phase = 'over'; state.turn = null; state.round = 12;
+  state.players.forEach(p => { p.played = Array.from({ length: 12 * charsPerPlayer(count) }, (_, i) => state.cfg.chars[(i + p.id) % state.cfg.chars.length]); });
+  state.scores = state.players.map(p => score(state, p));
+  state.winner = [...state.scores].sort((a, b) => b.total - a.total)[0].pid;
+}
 const noop = () => {};
 const scene = createScene(document.getElementById('board'), {
   onPick: h => ui.onPick(h), onHover: (h, x, y) => ui.onHover(h, x, y),

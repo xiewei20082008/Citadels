@@ -3,7 +3,7 @@
 
 import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js';
 import {
-  rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost,
+  rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost, charsPerPlayer,
 } from './engine.js';
 import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js';
 import { svg, ROMAN } from './icons.js';
@@ -630,7 +630,7 @@ export function createUI(ctx) {
     els.wrap.classList.toggle('side', ['war', 'marshal', 'inspect', 'log', 'round'].includes(s)); // keep the table clickable
     els.sheet.inert = !s;
     els.sheet.setAttribute('aria-hidden', String(!s));
-    els.drawer.hidden = !L.drawers.length;
+    els.drawer.hidden = !L.drawers.length || s === 'journeys';
     els.drawer.textContent = `${t('ui.showPopup')} · ${L.drawers.at(-1)?.title || ''}`;
     if (!s || !v) { els.sheet.innerHTML = ''; return; }
     // never leave a decision dialog on screen with nothing to decide
@@ -795,6 +795,17 @@ export function createUI(ctx) {
         <h3>${t('col.purple')}</h3><dl class="dlist">${purples.map(id => `<dt><span class="dot" style="background:${HUE.purple}"></span>${dname(id)} <span class="muted">${DIST[id][0]}</span></dt><dd>${ddesc(id)}</dd>`).join('')}</dl>
         <p class="note">${t('ui.keys')}</p><p class="note">${t('ui.camHint')}</p>`, { cls: 'scroll' });
       wide = true;
+    } else if (s === 'journeys') {
+      const per = charsPerPlayer(v.players.length);
+      const rounds = Math.ceil(Math.max(0, ...v.players.map(p => p.played?.length || 0)) / per);
+      const players = [...v.players].sort((a, b) => (v.scores?.find(r => r.pid === b.id)?.total || 0) - (v.scores?.find(r => r.pid === a.id)?.total || 0));
+      html = sheetFrame(t('ov.journey'), `<div class="journey-rounds">${Array.from({ length: rounds }, (_, round) => `
+        <section class="journey-round"><h3>${t('ui.round', { n: round + 1 })}</h3>${players.map(p => `
+          <div class="jr"><span class="jr-who">${avatar(p)}<span class="jr-name">${p.id === v.me ? t('ui.you') : realName(p.id)}</span></span>
+            <div class="jr-chars">${(p.played || []).slice(round * per, (round + 1) * per).map(id => `
+              <button class="btn small ghost journey-character" data-char="${id}" style="--cc:${CHAR[id].color}">${svg(CHAR[id].key)}<span>${ROMAN[CHAR[id].rank]} · ${esc(cname(id))}</span></button>`).join('') || '<span class="muted">—</span>'}</div></div>`).join('')}
+        </section>`).join('')}</div>`, { cls: 'scroll', foot: `<div class="sh-foot"><button class="btn" data-a="journeyBack">${svg('back')}${t('lb.back')}</button></div>` });
+      wide = true;
     } else if (s === 'over') {
       const rows = [...v.scores].sort((a, b) => b.total - a.total);
       const win = v.winner === v.me, mine = rows.findIndex(r => r.pid === v.me);
@@ -816,14 +827,13 @@ export function createUI(ctx) {
           ${cols.map(k => `<td>${r.parts[k] || '·'}</td>`).join('')}<td class="tot">${r.total}</td></tr>`).join('')}</tbody></table>
         ${moments.length ? `<h4 class="ov-h">${t('ov.moments')}</h4><div class="moments">${moments.map(m => `<div class="mo">${svg(m.icon)}<span class="mo-k">${t('mo.' + m.k)}</span>
           <span class="mo-v">${avatar(m.p)}<span class="mo-name">${m.p.id === v.me ? t('ui.you') : realName(m.p.id)}</span><b>${t(m.unit, { n: m.n })}</b></span></div>`).join('')}</div>` : ''}
-        ${v.players.some(p => p.played?.length) ? `<details class="journeys"><summary>${t('ov.journey')}</summary>${rows.map(r => { const p = P(r.pid);
-          return `<div class="jr"><span class="jr-who">${avatar(p)}${p.id === v.me ? t('ui.you') : realName(p.id)}</span><span class="jr-chars">${(p.played || []).map(id => chip(id)).join('')}</span></div>`; }).join('')}</details>` : ''}
+        ${v.players.some(p => p.played?.length) ? `<button class="btn journeys" data-a="journey" aria-haspopup="dialog" aria-controls="game-sheet">${svg('log')}${t('ov.journey')}</button>` : ''}
         ${rec ? `<p class="note">${t('lb.stats', rec)}</p>` : ''}
         <div class="sh-foot two">${ctx.mode() !== 'peer' ? `<button class="btn primary" data-a="again">${svg('play')}${t('ui.again')}</button>` : ''}<button class="btn" data-a="home">${t('ui.home')}</button></div></div>`;
       wide = true;
     }
     if (!html) { L.sheet = null; els.wrap.classList.remove('open'); els.sheet.innerHTML = ''; return; }
-    els.sheet.className = 'sheet' + (wide ? ' wide' : '') + (s === 'over' ? ' over-sheet' : '');
+    els.sheet.className = 'sheet' + (wide ? ' wide' : '') + (s === 'over' ? ' over-sheet' : s === 'journeys' ? ' journey-sheet' : '');
     els.sheet.innerHTML = html;
     const collapse = `<button class="btn small ghost" data-a="hideSheet" aria-controls="game-sheet" aria-expanded="true">${t('ui.hidePopup')}</button>`;
     const head = $('.sh-head', els.sheet);
@@ -838,7 +848,7 @@ export function createUI(ctx) {
     if (s === 'log') { const b = $('.sh-body', els.sheet); b.scrollTop = b.scrollHeight; }
     markHint();
     // keyboard users land inside a decision dialog
-    if (BLOCKING.includes(s) && !els.sheet.contains(document.activeElement)) els.sheet.querySelector('button:not([disabled]):not([data-a="close"])')?.focus({ preventScroll: true });
+    if ((BLOCKING.includes(s) || s === 'journeys') && !els.sheet.contains(document.activeElement)) els.sheet.querySelector('button:not([disabled]):not([data-a="close"])')?.focus({ preventScroll: true });
   }
 
   function hideSheet() {
@@ -875,6 +885,11 @@ export function createUI(ctx) {
     sfx('click');
   }
   function closeSheet() {
+    if (L.sheet === 'journeys' && L.drawers.at(-1)?.sheet === 'over') {
+      restoreSheet();
+      $('[data-a="journey"]', els.sheet)?.focus({ preventScroll: true });
+      return;
+    }
     L.sheet = null; L.multi.clear(); renderSheet(); ctx.scene.highlight([]);
   }
 
@@ -894,6 +909,8 @@ export function createUI(ctx) {
       case 'hideSheet': return hideSheet();
       case 'restoreSheet': return restoreSheet();
       case 'close': return closeSheet();
+      case 'journey': return openSheet('journeys');
+      case 'journeyBack': return closeSheet();
       case 'sheet': return openSheet(v);
       case 'overview': ctx.scene.resetView(); return;
       case 'hint': return showHint();
@@ -1027,7 +1044,7 @@ export function createUI(ctx) {
     if (!root.classList.contains('on') || e.target.closest?.('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
     const click = sel => { const b = root.querySelector(sel); if (b && !b.disabled) { b.click(); e.preventDefault(); } };
     const k = e.key.toLowerCase();
-    if (k === 'escape') { if (L.sheet) hideSheet(); else if (L.drawers.length) restoreSheet(); else els.top.classList.remove('emoting'); return; }
+    if (k === 'escape') { if (L.sheet === 'journeys') closeSheet(); else if (L.sheet) hideSheet(); else if (L.drawers.length) restoreSheet(); else els.top.classList.remove('emoting'); return; }
     if (els.wrap.classList.contains('open') && !['h', 'l'].includes(k)) {
       if (/^[1-9]$/.test(k)) click(`.sheet .ccard:nth-of-type(${k}), .sheet .cards-big > :nth-child(${k}) [data-a], .sheet .cards-big > .card:nth-child(${k})`);
       return;
