@@ -70,7 +70,6 @@ function render() {
         ${row(t('set.tips'), (prefs.tips ? `<button class="btn small ghost" data-s="tipsReset" ${tipsReset ? 'disabled' : ''}>${t(tipsReset ? 'set.tipsAgain' : 'set.tipsReset')}</button>` : '') + sw('tips', prefs.tips, t('set.tips')))}
       </section>
       <section><h4>${t('set.display')}</h4>
-        ${row(t('ui.quality'), seg('quality', ['high', 'low'].map(k => [k, t('ui.q.' + k)]), ctx.scene.quality))}
         ${row(t('set.motion'), sw('reduceMotion', prefs.reduceMotion, t('set.motion')))}
         ${row(t('set.symbols'), sw('symbols', prefs.symbols, t('set.symbols')))}
       </section>
@@ -133,7 +132,6 @@ function onClick(e) {
     case 'music': setMusic(!musicEnabled()); break;
     case 'track': setTrack(v); if (!musicEnabled()) setMusic(true); break; // picking a track means 'play it'
     case 'speed': ctx.setSpeed(v); break;
-    case 'quality': ctx.scene.setQuality(v, true); break;
     case 'tipsReset':
       try { Object.keys(localStorage).filter(k => k.startsWith('c3d.coach.')).forEach(k => localStorage.removeItem(k)); } catch {}
       tipsReset = true; break;

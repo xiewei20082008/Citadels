@@ -2,7 +2,7 @@
 
 export const COLORS = ['yellow', 'blue', 'green', 'red', 'purple'];
 
-// Jewel-tone palette shared by the 3D scene and the HUD.
+// Jewel-tone palette shared by the miniature board, artwork and HUD.
 export const HUE = {
   yellow: '#e8b34a', blue: '#4f86d9', green: '#3fae7a', red: '#d2544a', purple: '#9a6ad8',
 };

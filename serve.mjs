@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const port = +process.argv[2] || 5173;
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
 
 createServer(async (req, res) => {
   const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([/\\])+/, '');
@@ -18,4 +18,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404).end('not found');
   }
-}).listen(port, () => console.log(`Citadels 3D → http://localhost:${port}`));
+}).listen(port, () => console.log(`Citadels → http://localhost:${port}`));

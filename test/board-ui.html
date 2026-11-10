@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2D board fixture</title>
+<link rel="stylesheet" href="../style.css">
+<main id="board" aria-label="Citadels"></main>
+<div id="hud"></div>
+<script type="module">
+import { createScene } from '../js/scene.js';
+import { createUI } from '../js/ui.js';
+import { createGame, act, viewFor, buildLimit } from '../js/engine.js';
+import { DIST_IDS } from '../js/data.js';
+import { setLang } from '../js/i18n.js';
+const params = new URLSearchParams(location.search);
+setLang(params.get('lang') || 'en');
+const count = Math.max(2, Math.min(7, +params.get('players') || 7));
+const marshal = params.has('marshal'), cid = marshal ? 20 : 8;
+let state = createGame({ players: ['You', 'Lady Mira', 'Duke Arven', 'Baron Selt', 'Countess Vael', 'Lord Draven', 'Dame Isolde'].slice(0, count).map(name => ({ name })),
+  chars: [1, 2, 3, 4, 5, 6, 7, cid], seed: 42 });
+state.deck.push(...state.players.flatMap(p => p.hand));
+state.players.forEach((p, i) => { p.hand = []; p.chars = [i === 0 ? cid : i]; p.gold = 12; });
+function give(pid, id, zone = 'city') {
+  const i = state.deck.findIndex(c => c.id === id);
+  state.players[pid][zone].push(state.deck.splice(i, 1)[0]);
+}
+give(0, 'manor'); give(0, 'market', 'hand'); give(1, 'temple'); give(1, 'tavern');
+state.players.slice(2).forEach(p => {
+  for (let i = 0; i < 5; i++) p.city.push(state.deck.shift());
+});
+state.phase = 'turns'; state.call = 8; state.revealed = state.cfg.chars;
+state.turn = { pid: 0, charId: cid, rank: 8, income: true, built: 0, paidBuild: false, max: buildLimit(cid), used: {}, pending: null };
+const noop = () => {};
+const scene = createScene(document.getElementById('board'), {
+  onPick: h => ui.onPick(h), onHover: (h, x, y) => ui.onHover(h, x, y),
+});
+const ui = createUI({ scene, thumbs: Object.fromEntries(DIST_IDS.map(id => [id, `../assets/districts/${id}.webp`])),
+  mode: () => 'solo', dispatch, openSettings: noop, leave: noop, again: noop, emote: noop, hint: noop });
+function render() { const v = viewFor(state, 0); scene.sync(v, false); ui.render(v); }
+function dispatch(action) {
+  const next = act(state, 0, action);
+  if (next.error) throw new Error(next.error);
+  state = next; render();
+}
+window.fixture = { scene, ui, render, dispatch, get state() { return state; } };
+ui.show(); render();
+</script>
+</html>

@@ -291,7 +291,7 @@ export default {
   'ui.qualityLow': 'Se han activado gráficos fluidos para este dispositivo.',
   'ui.keys': 'Teclas — G oro · D robar · B construir · A habilidad · E terminar · H pista · 1–9 cartas',
   'ui.react': 'Reaccionar',
-  'ui.camHint': 'Arrastra para girar · rueda o pellizco para acercar',
+  'ui.camHint': 'Toca una ciudad para verla · la vista general muestra todas las ciudades',
   'ui.resetView': 'Restablecer vista',
   'ui.rejoined': '{name} ha vuelto.',
   'ui.error': 'Algo salió mal; tu partida está guardada.',
@@ -299,7 +299,7 @@ export default {
   'coach.draft': 'Elige un personaje en secreto. Los personajes actúan por rango (I → IX) y cada uno tiene un poder: pasa el cursor por una carta para leerlo.',
   'coach.turn': '¡Tu turno! Primero toma 2 de oro o roba cartas, luego construye un distrito que puedas pagar. ¿Dudas? Pulsa Pista.',
   'coach.call': 'La corte llama a los personajes del I al IX: sigue la barra de arriba.',
-  'coach.cam': 'Arrastra la mesa para mirar alrededor · toca una ciudad para verla.',
+  'coach.cam': 'Toca una ciudad para verla · la vista general muestra todas las ciudades.',
 
   // settings
   'set.title': 'Ajustes',

@@ -1,8 +1,10 @@
-# Citadels 3D · 富饶之城
+# Citadels · 富饶之城
 
 **English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md) · [Русский](README.ru.md) · [Italiano](README.it.md)
 
-Build your city on a candle-lit 3D table: pick a secret character each round, outwit your rivals, and score the most points. Finishing first doesn't guarantee the win.
+Build your city on a 2D miniature board: pick a secret character each round, outwit your rivals, and score the most points. Finishing first doesn't guarantee the win.
+
+The buildings keep their original model artwork as pre-rendered images. Playing needs no WebGL, live 3D effects, or graphics CDN downloads. Tap a city to inspect it; the overview button returns to all cities.
 
 ## ▶ [Play now](https://yulunwang.github.io/Citadels/)
 
@@ -37,7 +39,7 @@ In **Custom**, choose **Marshal** at rank VIII or **Tax Collector** at rank IX. 
 
 ## For developers
 
-No build step: plain JavaScript (ES modules) and Three.js. Run locally:
+No build step: plain JavaScript (ES modules), CSS, and checked-in district images. Run locally:
 
 ```bash
 node serve.mjs    # then open http://localhost:5173
@@ -62,12 +64,17 @@ For Marshal targeting and the public tax pool, open `http://localhost:5173/test/
 |---|---|
 | `js/engine.js` | Rules engine: `act(state, pid, action)` and `viewFor(state, pid)` (what each player may see) |
 | `js/ai.js`, `js/search.js` | Computer players (they receive only `viewFor`) and the Cunning level's lookahead |
-| `js/scene.js`, `js/models.js`, `js/materials.js` | 3D table, district models, materials |
+| `js/scene.js`, `assets/districts/` | Event-driven 2D board and baked building artwork |
+| `js/models.js`, `js/materials.js`, `tools/render-art.*` | Offline artwork generation from the original 3D models |
 | `js/ui.js`, `js/lobby.js`, `js/settings.js` | In-game interface and lobby |
 | `js/main.js`, `js/net.js` | Game flow, saves, online play (PeerJS) |
 | `js/i18n.js`, `js/lang/*.js` | Text: English and Chinese in `i18n.js`, one file per other language |
 | `js/data.js`, `js/sfx.js` | Card data, sound |
 
 **Adding a language:** copy `js/lang/fr.js`, translate the values (keep the `{placeholders}`), and register it in `LANGS` and `EXTRA` in `js/i18n.js`. `node test/engine.test.mjs` fails if a key or placeholder is missing.
+
+For a repeatable seven-player board check, open `http://localhost:5173/test/board-ui.html`. Add `?marshal` for seizure targeting or `?players=2&lang=de` for a two-player German layout. The fixture uses the real engine, board, and HUD. `node test/board.test.mjs` runs browser checks with Playwright installed and the local server running; `PLAYWRIGHT_MODULE` can point to a bundled Playwright module.
+
+To regenerate artwork after editing a model, keep the server running and run `node tools/render-art.mjs` with Playwright installed and Chrome available. This authoring tool uses Three.js from its CDN and writes 37 WebP images to `assets/districts/`. Three.js is never loaded by the game. `CITADELS_BROWSER` selects another Playwright browser channel and `CITADELS_URL` overrides the local server URL.
 
 Merging to `main` publishes the link above automatically, and every pull request gets its own preview link.

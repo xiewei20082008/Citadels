@@ -1,5 +1,5 @@
 // In-game HUD: top bar, call track, seat labels, hand dock, action buttons, sheets (modals),
-// character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM over WebGL.
+// character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM.
 
 import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js';
 import {
@@ -71,7 +71,8 @@ export function createUI(ctx) {
   const L = { drawers: [], sel: null, sheet: null, multi: new Set(), inspect: null, log: [], view: null, labelEls: new Map(), hint: null, shown: null };
 
   const insets = () => ctx.scene.setInsets({ top: els.top.offsetHeight + 8, bottom: els.dock.offsetHeight + 8 });
-  new ResizeObserver(insets).observe(els.dock);
+  const hudSize = new ResizeObserver(insets);
+  hudSize.observe(els.top); hudSize.observe(els.dock);
 
   // ── helpers ──
   const P = pid => L.view.players[pid];
@@ -203,7 +204,7 @@ export function createUI(ctx) {
     toast(`💡 ${t('coach.' + key)}`, 'coach', 7000);
   }
 
-  // Numbers that rise from coins / cards / plots in the 3D scene.
+  // Numbers that rise from coins / cards / plots on the board.
   function floater(pid, where, text, tone = '') {
     const p = ctx.scene.screenOf(pid, where);
     if (!p || p.behind || document.hidden) return;
@@ -414,7 +415,7 @@ export function createUI(ctx) {
     const actor = actorOf(view);
     const seen = new Set();
     for (const p of view.players) {
-      if (p.id === view.me) continue;
+      if (p.id === view.me && !ctx.scene.attachLabel) continue;
       seen.add(p.id);
       let el = L.labelEls.get(p.id);
       if (!el) {
@@ -426,6 +427,7 @@ export function createUI(ctx) {
         els.labels.appendChild(el);
         L.labelEls.set(p.id, el);
       }
+      ctx.scene.attachLabel?.(p.id, el);
       const live = view.phase !== 'over' && view.phase !== 'idle';
       el.classList.toggle('active', actor === p.id && live);
       el.classList.toggle('winner', view.phase === 'over' && view.winner === p.id);
@@ -437,17 +439,8 @@ export function createUI(ctx) {
     for (const [pid, el] of L.labelEls) if (!seen.has(pid)) { el.remove(); L.labelEls.delete(pid); }
   }
 
-  // positions labels every frame from the 3D projection; ticks the turn timer
+  // Labels live in each city header. Only the turn countdown needs a tick.
   function frame() {
-    for (const [pid, el] of L.labelEls) {
-      const p = ctx.scene.labelPos(pid);
-      if (!p || p.behind) { el.style.opacity = 0; continue; }
-      const w = el.offsetWidth, h = el.offsetHeight;
-      const x = Math.max(6, Math.min(innerWidth - w - 6, p.x - w / 2));
-      const y = Math.max(els.top.offsetHeight + 4, Math.min(innerHeight - els.dock.offsetHeight - h - 4, p.y - h / 2));
-      el.style.transform = `translate(${x}px, ${y}px)`;
-      el.style.opacity = 1;
-    }
     const tm = els.prompt.querySelector('.timer');
     if (tm) {
       const left = Math.max(0, Math.ceil((+tm.dataset.at - Date.now()) / 1000));
@@ -1077,21 +1070,17 @@ export function createUI(ctx) {
     clearTimeout(L.tipTimer); L.tipTimer = setTimeout(hideTip, 3500);
   });
   root.addEventListener('pointerout', e => { if (!e.relatedTarget || !root.contains(e.relatedTarget)) hideTip(); });
-  // subtle 3D tilt on hand cards (desktop)
-  els.hand.addEventListener('pointermove', e => {
-    const c = e.target.closest('.card');
-    if (!c || e.pointerType !== 'mouse') return;
-    const r = c.getBoundingClientRect();
-    c.style.setProperty('--rx', ((e.clientY - r.top) / r.height - 0.5) * -14 + 'deg');
-    c.style.setProperty('--ry', ((e.clientX - r.left) / r.width - 0.5) * 14 + 'deg');
-  });
-
-  // 3D picks
+  // Board picks
   function onPick(h) {
     if (!L.view || !h) return;
-    if (['war', 'marshal'].includes(L.sheet) && h.card) {
-      const tgt = warTargets(L.view, L.sheet === 'marshal').find(x => x.card.uid === h.card.uid && x.ok);
-      if (tgt) { L.warSel = tgt.card.uid; sfx('click'); renderSheet(); return ctx.scene.highlight([tgt.card.uid]); }
+    const hiddenTargeting = !L.sheet && L.drawers.findLast(d => ['war', 'marshal'].includes(d.sheet));
+    const targeting = L.sheet || hiddenTargeting?.sheet;
+    if (['war', 'marshal'].includes(targeting) && h.card) {
+      const tgt = warTargets(L.view, targeting === 'marshal').find(x => x.card.uid === h.card.uid && x.ok);
+      if (tgt) {
+        if (hiddenTargeting) openSheet(targeting);
+        L.warSel = tgt.card.uid; sfx('click'); renderSheet(); return ctx.scene.highlight([tgt.card.uid]);
+      }
     }
     if (h.pid !== null && h.pid !== undefined) {
       L.inspect = h.pid;
@@ -1101,6 +1090,7 @@ export function createUI(ctx) {
   }
   function onHover(h, x, y) {
     if (h?.card) showTip(cardTip(h.card), x, y);
+    else if (h?.charId) showTip(charTip(h.charId), x, y);
     else hideTip();
   }
 

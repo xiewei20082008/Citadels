@@ -291,7 +291,7 @@ export default {
   'ui.qualityLow': 'Graphismes fluides activés pour cet appareil.',
   'ui.keys': 'Touches — G or · D piocher · B bâtir · A pouvoir · E fin · H conseil · 1–9 cartes',
   'ui.react': 'Réagir',
-  'ui.camHint': 'Glissez pour tourner · molette ou pincement pour zoomer',
+  'ui.camHint': 'Touchez une cité pour l’examiner · la vue d’ensemble affiche toutes les cités',
   'ui.resetView': 'Réinitialiser la vue',
   'ui.rejoined': '{name} est de retour.',
   'ui.error': 'Un problème est survenu — votre partie est sauvegardée.',
@@ -299,7 +299,7 @@ export default {
   'coach.draft': 'Choisissez un personnage en secret. Les personnages agissent par rang (I → IX) et chacun a un pouvoir : survolez une carte pour le lire.',
   'coach.turn': 'À vous ! Prenez d\'abord 2 or ou piochez, puis bâtissez un quartier que vous pouvez payer. Un doute ? Touchez Conseil.',
   'coach.call': 'La cour appelle les personnages du I au IX : suivez la barre en haut.',
-  'coach.cam': 'Faites glisser la table pour regarder autour · touchez une cité pour l\'examiner.',
+  'coach.cam': 'Touchez une cité pour l’examiner · la vue d’ensemble affiche toutes les cités.',
 
   // settings
   'set.title': 'Réglages',

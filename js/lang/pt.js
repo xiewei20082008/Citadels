@@ -291,7 +291,7 @@ export default {
   'ui.qualityLow': 'Gráficos fluidos ativados para este dispositivo.',
   'ui.keys': 'Teclas — G ouro · D comprar · B construir · A habilidade · E encerrar · H dica · 1–9 cartas',
   'ui.react': 'Reagir',
-  'ui.camHint': 'Arraste para girar · role ou use pinça para zoom',
+  'ui.camHint': 'Toque numa cidade para examiná-la · a visão geral mostra todas as cidades',
   'ui.resetView': 'Redefinir visão',
   'ui.rejoined': '{name} voltou.',
   'ui.error': 'Algo deu errado — seu jogo está salvo.',
@@ -299,7 +299,7 @@ export default {
   'coach.draft': 'Escolha um personagem em segredo. Os personagens agem por nível (I → IX) e cada um tem um poder — passe o cursor sobre uma carta para ler.',
   'coach.turn': 'Sua vez! Primeiro pegue 2 ouro ou compre cartas, depois construa um distrito que você possa pagar. Em dúvida? Toque em Dica.',
   'coach.call': 'A corte chama os personagens do I ao IX — acompanhe a barra no topo.',
-  'coach.cam': 'Arraste a mesa para olhar em volta · toque numa cidade para examiná-la.',
+  'coach.cam': 'Toque numa cidade para examiná-la · a visão geral mostra todas as cidades.',
 
   // settings
   'set.title': 'Configurações',

@@ -2,7 +2,6 @@
 // persistence, turn timer, emotes, stats and the host/peer plumbing. UI, lobby and scene are views.
 
 import { createScene } from './scene.js';
-import { renderThumbs } from './models.js';
 import { createUI, EMOTES } from './ui.js';
 import { createLobby } from './lobby.js';
 import { createGame, act, viewFor, currentActor, VERSION } from './engine.js';
@@ -28,15 +27,12 @@ const G = {
   speed: store.get('c3d.speed') || 'normal', cfg: null, room: null, link: null,
   deadline: null, auto: null, recorded: null,
 };
-const thumbs = {};
+const thumbs = Object.fromEntries(DIST_IDS.map(id => [id, new URL(`../assets/districts/${id}.webp`, import.meta.url).href]));
 setLang(getLang());
 
-const scene = createScene(document.getElementById('gl'), {
+const scene = createScene(document.getElementById('board'), {
   onPick: h => G.mode && ui.onPick(h),
   onHover: (h, x, y) => G.mode && ui.onHover(h, x, y),
-  onFrame: () => G.mode && ui.frame(),
-  onQuality: () => G.mode && ui.toast(t('ui.qualityLow')),
-  onContextRestored: () => { saveNow(); location.reload(); },
 });
 
 const ui = createUI({
@@ -67,6 +63,7 @@ initSettings({
 });
 function relang() {
   document.title = t('lb.title');
+  scene.relang();
   ui.relang();
   lobby.render();
 }
@@ -217,7 +214,6 @@ function enterGame(mode) {
   lobby.hide();
   ui.resetLog();
   ui.show();
-  scene.orbit(false);
   scene.reset();
   scene.resetView();
 }
@@ -470,13 +466,9 @@ setInterval(() => {
 
 // ── showcase behind the lobby ──────────────────────────────────────────────
 function showcase() {
-  let s = createGame({ players: AI_NAMES.en.slice(0, 5).map((name, i) => ({ name, ai: true, avatar: AVATARS[i] })), chars: PRESETS.queen, goal: 8 });
-  for (let guard = 0; s.phase !== 'over' && s.round < 6 && guard < 4000; guard++) {
-    const pid = currentActor(s), v = viewFor(s, pid);
-    let n = act(s, pid, aiAction(v, pid));
-    if (n.error) n = act(s, pid, safeAction(v, pid));
-    s = n;
-  }
+  const s = createGame({ players: AI_NAMES.en.slice(0, 5).map((name, i) => ({ name, ai: true, avatar: AVATARS[i] })), chars: PRESETS.queen, goal: 8 });
+  // Decorative cities: don't run hundreds of synchronous AI moves to open the lobby.
+  s.players.forEach((p, i) => { p.city = s.deck.splice(0, 3 + i % 3); p.gold = 3 + i * 2; });
   const v = viewFor(s, -1);
   v.phase = 'idle';
   v.interrupt = null;
@@ -484,7 +476,6 @@ function showcase() {
   scene.reset();
   scene.sync(v, false);
   scene.resetView();
-  scene.orbit(true);
 }
 
 // ── safety nets ────────────────────────────────────────────────────────────
@@ -507,7 +498,5 @@ lobby.show('home');
 if (saves().peer) cont(); // this tab was in an online game and got refreshed: rejoin straight away
 document.title = t('lb.title');
 document.getElementById('boot')?.classList.add('done');
-renderThumbs(DIST_IDS).then(r => {
-  Object.assign(thumbs, r);
-  if (G.mode && G.view) ui.render(G.view);
-});
+// Only the optional turn countdown ticks while idle; the board updates on state changes.
+setInterval(() => { if (G.mode && !document.hidden) ui.frame(); }, 1000);
