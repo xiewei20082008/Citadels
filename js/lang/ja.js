@@ -196,6 +196,7 @@ export default {
   'ui.waitingDraft': '{name} が役職を選んでいます…',
   'ui.pickChar': '役職を選ぶ',
   'ui.pickSecond': '2つ目の役職を選ぶ',
+  'ui.previousChoices': '前のプレイヤーは次の役職の中から選びました',
   'ui.faceUp': '表向きで除外',
   'ui.faceDown': '{n}枚伏せ',
   'ui.lastPickNote': '最後に選ぶあなたは、伏せられた役職も取れます。',

@@ -196,6 +196,7 @@ export default {
   'ui.waitingDraft': '{name} está escolhendo um personagem…',
   'ui.pickChar': 'Escolha seu personagem',
   'ui.pickSecond': 'Escolha seu segundo personagem',
+  'ui.previousChoices': 'Os jogadores anteriores escolheram entre',
   'ui.faceUp': 'Separados abertos',
   'ui.faceDown': '{n} oculto(s)',
   'ui.lastPickNote': 'Como último a escolher, você também pode pegar a carta oculta.',
