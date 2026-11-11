@@ -1,8 +1,8 @@
 // Event-driven 2D miniature board. Art is baked from the original models into
 // assets/districts; no WebGL, camera, post-processing or animation loop.
 // This module only receives each player's permitted view.
-import { HUE, SEAT_HUES } from './data.js?v=a3b36d07';
-import { t, dname } from './i18n.js?v=a3b36d07';
+import { HUE, SEAT_HUES } from './data.js?v=30558915';
+import { t, dname } from './i18n.js?v=30558915';
 
 export function createScene(root, hooks = {}) {
   const seats = new Map(), timers = new Set();

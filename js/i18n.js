@@ -1,15 +1,15 @@
 // English + Chinese live in the table below; other languages are one file each in ./lang/ (missing keys
 // fall back to English). t('key', {vars}) — '{name}' placeholders.
-import { CHAR } from './data.js?v=a3b36d07';
-import ja from './lang/ja.js?v=a3b36d07';
-import ko from './lang/ko.js?v=a3b36d07';
-import es from './lang/es.js?v=a3b36d07';
-import fr from './lang/fr.js?v=a3b36d07';
-import zhTW from './lang/zh-TW.js?v=a3b36d07';
-import de from './lang/de.js?v=a3b36d07';
-import pt from './lang/pt.js?v=a3b36d07';
-import ru from './lang/ru.js?v=a3b36d07';
-import it from './lang/it.js?v=a3b36d07';
+import { CHAR } from './data.js?v=30558915';
+import ja from './lang/ja.js?v=30558915';
+import ko from './lang/ko.js?v=30558915';
+import es from './lang/es.js?v=30558915';
+import fr from './lang/fr.js?v=30558915';
+import zhTW from './lang/zh-TW.js?v=30558915';
+import de from './lang/de.js?v=30558915';
+import pt from './lang/pt.js?v=30558915';
+import ru from './lang/ru.js?v=30558915';
+import it from './lang/it.js?v=30558915';
 
 export const EXTRA = { 'zh-TW': zhTW, ja, ko, es, fr, de, pt, ru, it };
 export const LANGS = {
@@ -239,6 +239,7 @@ const D = {
   'ui.waitingDraft': ['{name} is choosing a character…', '{name} 正在挑选角色…'],
   'ui.pickChar': ['Choose your character', '选择你的角色'],
   'ui.pickSecond': ['Choose your second character', '选择你的第二个角色'],
+  'ui.previousChoices': ['Previous players have chosen among', '之前的玩家从以下角色中进行了选择'],
   'ui.faceUp': ['Set aside face up', '公开移除'],
   'ui.faceDown': ['{n} hidden', '{n} 张暗置'],
   'ui.lastPickNote': ['As the last to choose, you may also take the hidden card.', '作为最后一位挑选者，你也可以拿走暗置的角色。'],

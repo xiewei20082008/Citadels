@@ -196,6 +196,7 @@ export default {
   'ui.waitingDraft': '{name} wählt eine Figur…',
   'ui.pickChar': 'Wähle deine Figur',
   'ui.pickSecond': 'Wähle deine zweite Figur',
+  'ui.previousChoices': 'Vorherige Spieler haben aus diesen Figuren gewählt',
   'ui.faceUp': 'Offen beiseitegelegt',
   'ui.faceDown': '{n} verdeckt',
   'ui.lastPickNote': 'Als Letzter darfst du auch die verdeckte Karte nehmen.',

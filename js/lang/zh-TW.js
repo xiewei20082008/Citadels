@@ -196,6 +196,7 @@ export default {
   'ui.waitingDraft': '{name} 正在挑選角色…',
   'ui.pickChar': '選擇你的角色',
   'ui.pickSecond': '選擇你的第二個角色',
+  'ui.previousChoices': '之前的玩家從以下角色中進行了選擇',
   'ui.faceUp': '公開移除',
   'ui.faceDown': '{n} 張暗置',
   'ui.lastPickNote': '作為最後一位挑選者，你也可以拿走暗置的角色。',

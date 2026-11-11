@@ -1,15 +1,15 @@
 // In-game HUD: top bar, call track, seat labels, hand dock, action buttons, sheets (modals),
 // character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM.
 
-import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=a3b36d07';
+import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=30558915';
 import {
   rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost, threatTargets, completionCount, constructionOptions, constructionPlan, armoryError,
-} from './engine.js?v=a3b36d07';
-import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=a3b36d07';
-import { svg, ROMAN } from './icons.js?v=a3b36d07';
-import { sfx } from './sfx.js?v=a3b36d07';
-import { prefs, alertTurn, vibrate } from './settings.js?v=a3b36d07';
-import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=a3b36d07';
+} from './engine.js?v=30558915';
+import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=30558915';
+import { svg, ROMAN } from './icons.js?v=30558915';
+import { sfx } from './sfx.js?v=30558915';
+import { prefs, alertTurn, vibrate } from './settings.js?v=30558915';
+import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=30558915';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -739,6 +739,11 @@ export function createUI(ctx) {
       const opts = [...(v.draft.options || [])].sort((a, b) => rankOf(a) - rankOf(b));
       if (!opts.includes(L.draftSel)) L.draftSel = null;
       const second = me.chars.length > 0, after = v.draft.order.length - v.draft.idx - 1, sel = L.draftSel;
+      // Missing cards are possible earlier picks, including unknown face-down cards.
+      // Use only this player's view so secret character choices stay private.
+      const previousChoices = v.draft.order.slice(0, v.draft.idx).some(pid => pid !== v.me)
+        ? v.cfg.chars.filter(id => !opts.includes(id) && !v.draft.faceUp.includes(id) && !me.chars.includes(id))
+          .sort((a, b) => rankOf(a) - rankOf(b)) : [];
       const go = discarding ? 'discard' : 'pick';
       html = sheetFrame(t(discarding ? 'ui.discardTitle' : second ? 'ui.pickSecond' : 'ui.pickChar'),
         `<div class="draft-top">${orderStrip(v)}<span class="muted">${after ? t('dr.after', { n: after }) : t('dr.last')}</span></div>
@@ -751,6 +756,7 @@ export function createUI(ctx) {
         <div class="aside">${v.draft.faceUp.length ? `<span class="muted">${t('ui.faceUp')}</span>${v.draft.faceUp.map(namedChip).join('')}` : ''}
         ${v.draft.faceDown.length ? `<span class="chip hid">?</span><span class="muted">${t('ui.faceDown', { n: v.draft.faceDown.length })}</span>` : ''}
         ${second ? `<span class="muted">· ${t('ui.you')}</span>${me.chars.map(namedChip).join('')}` : ''}</div>
+        ${!discarding && previousChoices.length ? `<div class="aside previous-choices"><span class="muted">${t('ui.previousChoices')}</span>${previousChoices.map(namedChip).join('')}</div>` : ''}
         ${discarding ? `<p class="note">${t('ui.discardHint')}</p>` : opts.length > v.draft.avail.length ? `<p class="note">${t('ui.lastPickNote')}</p>` : ''}`,
         { closable: false, foot: `<div class="sh-foot"><button class="btn small ghost hint-btn" data-a="hint">${svg('help')}<span>${t('ui.hint')}</span></button>
           <button class="btn primary" data-a="${go}Go" ${sel ? '' : 'disabled'}>${sel ? t(discarding ? 'dr.discardGo' : 'dr.choose', { char: cname(sel) }) : t('dr.tapCard')}</button></div>` });
