@@ -197,6 +197,7 @@ export default {
   'ui.waitingDraft': '{name} 님이 역할을 고르는 중…',
   'ui.pickChar': '역할을 고르세요',
   'ui.pickSecond': '두 번째 역할을 고르세요',
+  'ui.roundInfo': '라운드 정보',
   'ui.previousChoices': '앞선 플레이어들은 다음 역할 중에서 골랐습니다',
   'ui.faceUp': '앞면으로 제외',
   'ui.faceDown': '{n}장 숨김',

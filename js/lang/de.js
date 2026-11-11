@@ -197,6 +197,7 @@ export default {
   'ui.waitingDraft': '{name} wählt eine Figur…',
   'ui.pickChar': 'Wähle deine Figur',
   'ui.pickSecond': 'Wähle deine zweite Figur',
+  'ui.roundInfo': 'Rundeninfo',
   'ui.previousChoices': 'Vorherige Spieler haben aus diesen Figuren gewählt',
   'ui.faceUp': 'Offen beiseitegelegt',
   'ui.faceDown': '{n} verdeckt',

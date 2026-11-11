@@ -197,6 +197,7 @@ export default {
   'ui.waitingDraft': '{name} choisit un personnage…',
   'ui.pickChar': 'Choisissez votre personnage',
   'ui.pickSecond': 'Choisissez votre second personnage',
+  'ui.roundInfo': 'Infos de manche',
   'ui.previousChoices': 'Les joueurs précédents ont choisi parmi',
   'ui.faceUp': 'Écartés face visible',
   'ui.faceDown': '{n} caché(s)',

@@ -2,7 +2,7 @@
 // act(state, pid, action) returns a NEW state, or {error} when the move is illegal.
 // Humans, AI and network peers all go through act(), so they play by identical rules.
 
-import { CHAR, COLORS, makeDeck } from './data.js?v=86d31ff1';
+import { CHAR, COLORS, makeDeck } from './data.js?v=4da4b0fa';
 
 const MAX_EV = 120;
 export const VERSION = 8; // Revised catalogue UIDs, Museum storage and Theater decisions
@@ -285,7 +285,7 @@ function applyCharacterEffects(s) {
 }
 
 export function threatTargets(s) {
-  return s.cfg.chars.filter(id => rankOf(id) !== 1 && rankOf(id) !== s.killed && rankOf(id) !== s.bewitched);
+  return s.cfg.chars.filter(id => id !== 21 && rankOf(id) !== 1 && rankOf(id) !== s.killed && rankOf(id) !== s.bewitched);
 }
 
 function advanceThreat(s) {

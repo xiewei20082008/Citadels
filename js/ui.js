@@ -1,15 +1,15 @@
 // In-game HUD: top bar, call track, seat labels, hand dock, action buttons, sheets (modals),
 // character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM.
 
-import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=86d31ff1';
+import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=4da4b0fa';
 import {
   rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost, threatTargets, completionCount, constructionOptions, constructionPlan, armoryError,
-} from './engine.js?v=86d31ff1';
-import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=86d31ff1';
-import { svg, ROMAN } from './icons.js?v=86d31ff1';
-import { sfx } from './sfx.js?v=86d31ff1';
-import { prefs, setChroniclePinned, alertTurn, vibrate } from './settings.js?v=86d31ff1';
-import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=86d31ff1';
+} from './engine.js?v=4da4b0fa';
+import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=4da4b0fa';
+import { svg, ROMAN } from './icons.js?v=4da4b0fa';
+import { sfx } from './sfx.js?v=4da4b0fa';
+import { prefs, setChroniclePinned, alertTurn, vibrate } from './settings.js?v=4da4b0fa';
+import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=4da4b0fa';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -57,7 +57,7 @@ export function createUI(ctx) {
 
   function chrome() {
     els.top.innerHTML = `
-      <div class="tb-left"><button class="round-chip" data-a="sheet" data-v="round" title="${t('tl.open')}"></button><span class="tax-pool gold" hidden></span></div>
+      <div class="tb-left"><button class="round-chip" data-a="sheet" data-v="round" title="${t('tl.open')}"></button><button class="icon-btn" data-a="sheet" data-v="roundInfo" aria-label="${t('ui.roundInfo')}" title="${t('ui.roundInfo')}">${svg('help')}</button><span class="tax-pool gold" hidden></span></div>
       <div class="calltrack" aria-label="call order"></div>
       <div class="tb-right">
         <div class="emote-wrap"><button class="icon-btn" data-a="emotes" title="${t('ui.react')}">😀</button>
@@ -92,15 +92,19 @@ export function createUI(ctx) {
     insets();
   }
 
-  // Reuse the public event text; retain the reading position until the reader returns to the bottom.
+  function relatesToMe(e, view) {
+    if (view.me < 0) return false;
+    if (['pid', 'target', 'from', 'to', 'crown', 'winner'].some(key => e[key] === view.me)) return true;
+    const chars = view.players[view.me]?.chars || [];
+    return (['kill', 'rob'].includes(e.k) && chars.some(id => rankOf(id) === e.rank)) ||
+      (['warrants', 'threats'].includes(e.k) && chars.some(id => e.targets.includes(id)));
+  }
+  function logHTML() {
+    return L.log.map(l => `<li class="lk-${l.k}${l.mine ? ' log-mine' : ''}" data-id="${l.id}">${l.txt}</li>`).join('');
+  }
   function renderChronicle() {
-    const body = els.logBody, follow = body.scrollHeight - body.scrollTop - body.clientHeight <= 24;
-    const top = body.scrollTop;
-    const oldHeight = body.scrollHeight;
-    const first = els.logList.firstElementChild?.dataset.id;
-    const removed = first && first !== String(L.log[0]?.id) ? els.logList.firstElementChild.offsetHeight : 0;
-    els.logList.innerHTML = L.log.map(l => `<li class="lk-${l.k}" data-id="${l.id}">${l.txt}</li>`).join('');
-    body.scrollTop = follow ? body.scrollHeight : Math.max(0, top - (oldHeight ? removed : 0));
+    els.logList.innerHTML = logHTML();
+    els.logBody.scrollTop = els.logBody.scrollHeight;
   }
 
   // ── helpers ──
@@ -295,7 +299,7 @@ export function createUI(ctx) {
     L.view = view;
     L.evShown = e.id;
     const txt = evText(e);
-    if (txt && e.k !== 'gold' && e.k !== 'cards') L.log.push({ id: e.id, k: e.k, txt });
+    if (txt && e.k !== 'gold' && e.k !== 'cards') L.log.push({ id: e.id, k: e.k, txt, mine: relatesToMe(e, view) });
     if (L.log.length > 300) L.log.splice(0, L.log.length - 300);
     renderChronicle();
     if (L.sheet === 'log' || L.sheet === 'round') renderSheet();
@@ -383,7 +387,22 @@ export function createUI(ctx) {
     if (interruptKey !== L.interruptKey) { L.interruptKey = interruptKey; if (interruptKey) alertTurn(); }
     // a new turn (incl. my second character straight after my first) closes the last turn's tools
     const turnKey = myTurn ? view.round + ':' + T.charId : null, wasWar = ['war', 'marshal'].includes(L.sheet);
-    if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; L.armoryTarget = null; L.warrantTargets = []; L.threatTargets = []; L.spyTarget = null; L.spyColor = null; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
+    if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.keepSel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; L.armoryTarget = null; L.warrantTargets = []; L.threatTargets = []; L.spyTarget = null; L.spyColor = null; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
+    if (L.roundInfo?.round !== view.round || prevMe !== view.me) L.roundInfo = null;
+    if (draftMine && !view.draft.mustDiscard) {
+      const opts = [...view.draft.options];
+      L.roundInfo = { round: view.round, draft: structuredClone(view.draft), opts,
+        previous: view.draft.order.slice(0, view.draft.idx).some(pid => pid !== view.me)
+          ? view.cfg.chars.filter(id => !opts.includes(id) && !view.draft.faceUp.includes(id) && !me.chars.includes(id)) : [] };
+    }
+    // Recover the private draft context after refresh/reconnection using the seat's own memory.
+    if (!L.roundInfo && me?.saw?.length && view.draft) {
+      const opts = [...me.saw.at(-1)];
+      const idx = view.draft.order.map((pid, i) => pid === view.me ? i : -1).filter(i => i >= 0)[me.saw.length - 1];
+      L.roundInfo = { round: view.round, draft: { ...structuredClone(view.draft), idx }, opts,
+        previous: view.draft.order.slice(0, idx).some(pid => pid !== view.me)
+          ? view.cfg.chars.filter(id => !opts.includes(id) && !view.draft.faceUp.includes(id) && !me.chars.includes(id)) : [] };
+    }
     const draftKey = draftMine ? view.round + ':' + view.draft.idx : null;
     if (draftKey !== L.draftKey) { L.draftKey = draftKey; L.draftSel = null; if (draftKey) alertTurn(); }
     if (myTurn && ABILITY_ICON[L.sheet] && L.sheet !== abilityKey(view)) L.sheet = null; // ability already spent
@@ -403,7 +422,7 @@ export function createUI(ctx) {
       const curChar = myTurn ? T.charId : null;
       els.me.style.setProperty('--seat', seatHue(me.id));
       els.me.innerHTML = `
-        <div class="mp-id">${avatar(me)}<span class="mp-name">${esc(me.name)}</span>${view.crown === me.id ? `<span class="crown-ico" title="Crown">${svg('crown')}</span>` : ''}</div>
+        <div class="mp-id">${avatar(me)}<span class="mp-name">${esc(me.name)}</span>${actorOf(view) === me.id ? thinking(me) : ''}${view.crown === me.id ? `<span class="crown-ico" title="Crown">${svg('crown')}</span>` : ''}</div>
         <div class="mp-stats"><span class="st gold" title="${t('ui.gold')}">${svg('gold')}<b>${me.gold}</b></span>
           <span class="st" title="${t('ui.city')}">${svg('build')}<b>${completionCount(me)}/${view.cfg.goal}</b></span>
           <span class="st" title="${t('ui.projected')}">★<b>${shownScore(view, me)}</b></span></div>
@@ -464,6 +483,9 @@ export function createUI(ctx) {
     }).join('');
   }
 
+  function thinking(p) {
+    return `<span class="thinking" role="img" aria-label="${esc(t('ui.waitingFor', { name: p.name }))}" title="${esc(t('ui.waitingFor', { name: p.name }))}">⏳</span>`;
+  }
   function renderLabels(view) {
     const actor = actorOf(view);
     const seen = new Set();
@@ -485,7 +507,7 @@ export function createUI(ctx) {
       el.classList.toggle('active', actor === p.id && live);
       el.classList.toggle('winner', view.phase === 'over' && view.winner === p.id);
       el.classList.toggle('done', completionCount(p) >= view.cfg.goal);
-      el.innerHTML = `<div class="s-top">${avatar(p)}<span class="s-name">${esc(p.name)}</span>${view.crown === p.id ? `<span class="crown-ico">${svg('crown')}</span>` : ''}${p.ai && ctx.mode() !== 'solo' ? '<span class="tag ai">AI</span>' : ''}${actor === p.id && live ? '<span class="dots"><i></i><i></i><i></i></span>' : ''}</div>
+      el.innerHTML = `<div class="s-top">${avatar(p)}<span class="s-name">${esc(p.name)}</span>${view.crown === p.id ? `<span class="crown-ico">${svg('crown')}</span>` : ''}${p.ai && ctx.mode() !== 'solo' ? '<span class="tag ai">AI</span>' : ''}${actor === p.id && live ? thinking(p) : ''}</div>
         <div class="s-stats"><span class="st gold">${svg('gold')}<b>${p.gold}</b></span><span class="st">${svg('card')}<b>${p.handCount}</b></span><span class="st">${svg('build')}<b>${p.city.length}</b></span><span class="st">★<b>${shownScore(view, p)}</b></span></div>
         ${p.chars.length || p.charCount ? `<div class="s-chars">${p.chars.map(c => chip(c, view.killed === rankOf(c) ? 'data-dead="1"' : '')).join('')}${'<span class="chip hid">?</span>'.repeat(Math.max(0, p.charCount - p.chars.length))}</div>` : ''}`;
     }
@@ -708,7 +730,7 @@ export function createUI(ctx) {
     const v = L.view, s = L.sheet;
     els.wrap.classList.toggle('open', !!s);
     els.wrap.classList.toggle('blocking', BLOCKING.includes(s));
-    els.wrap.classList.toggle('side', ['war', 'marshal', 'inspect', 'log', 'round'].includes(s)); // keep the table clickable
+    els.wrap.classList.toggle('side', ['war', 'marshal', 'inspect', 'log', 'round', 'roundInfo'].includes(s)); // keep the table clickable
     els.sheet.inert = !s;
     els.sheet.setAttribute('aria-hidden', String(!s));
     els.drawer.hidden = !L.drawers.length || s === 'journeys';
@@ -833,9 +855,10 @@ export function createUI(ctx) {
         <div class="sh-foot two"><button class="btn" data-a="graveNo">${t('ui.graveNo')}</button>
         <button class="btn primary" data-a="graveYes" ${me.gold >= 1 ? '' : 'disabled'}>${svg('gold')}${t('ui.graveYes')}</button></div>`, { closable: false });
     } else if (s === 'keep' && pend) {
+      if (!pend.cards.some(c => c.uid === L.keepSel)) L.keepSel = null;
       html = sheetFrame(t('ui.keepTitle', { n: pend.n }),
-        `<div class="cards-big">${sortHand(pend.cards).map(c => cardHTML(c, { cls: 'big' + (canPlace(me, c, T.charId) ? '' : ' dupwarn'), costShown: buildCost(me, c), attrs: 'data-a="keep"' })).join('')}</div>
-        <p class="note">${t('ui.keepHint')}</p>`, { closable: false, foot: hintFoot });
+        `<div class="cards-big">${sortHand(pend.cards).map(c => cardHTML(c, { cls: 'big' + (L.keepSel === c.uid ? ' sel' : '') + (canPlace(me, c, T.charId) ? '' : ' dupwarn'), costShown: buildCost(me, c), attrs: 'data-a="keep"' })).join('')}</div>
+        <p class="note">${t('ui.keepHint')}</p>`, { closable: false, foot: `<div class="sh-foot"><button class="btn small ghost" data-a="hint">${svg('help')}${t('ui.hint')}</button><button class="btn primary" data-a="keepGo" ${L.keepSel ? '' : 'disabled'}>${t('ui.confirm')}</button></div>` });
       wide = true;
     } else if (s === 'kill' || s === 'rob') {
       const ranks = targetRanks(v, s === 'kill' ? [1] : [1, 2, v.killed]).filter(r => !myRanks.includes(r));
@@ -923,6 +946,11 @@ export function createUI(ctx) {
         ${p.chars.map(c => chip(c)).join('')}</div>
         <div class="cards-pick city">${p.city.length ? p.city.map(c => cardHTML(c, { attrs: 'data-a="none"' }) + (c.stored?.length ? `<p class="note">${t('ui.stored', { n: c.stored.length })}: ${c.stored.filter(x => !x.hidden).map(x => esc(dname(x))).join(', ')}</p>` : '')).join('') : `<p class="muted">—</p>`}</div>`);
       wide = true;
+    } else if (s === 'roundInfo') {
+      const info = L.roundInfo;
+      html = sheetFrame(t('ui.roundInfo'), `${orderStrip(info ? { ...v, draft: info.draft } : v)}
+        ${info ? `<h3>${t('ui.previousChoices')}</h3><div class="aside">${info.previous.map(namedChip).join('') || '—'}</div>
+        <h3>${t('ui.pickChar')}</h3><div class="aside">${info.opts.map(namedChip).join('')}</div>` : ''}`, { cls: 'scroll' });
     } else if (s === 'round') {
       const calls = roundFeed(v);
       html = sheetFrame(t('tl.title', { n: v.round }), calls.length ? `<ol class="feed">${calls.map(({ e, items }, i) => {
@@ -932,7 +960,7 @@ export function createUI(ctx) {
           ${items.length ? `<ul>${items.map(x => `<li class="lk-${x.k}">${x.line}</li>`).join('')}</ul>` : ''}</li>`;
       }).join('')}</ol>` : `<p class="muted center">${t('tl.empty')}</p>`, { cls: 'scroll' });
     } else if (s === 'log') {
-      html = sheetFrame(t('ui.log'), `<ol class="log">${L.log.map(l => `<li class="lk-${l.k}">${l.txt}</li>`).join('')}</ol>`, { cls: 'scroll' });
+      html = sheetFrame(t('ui.log'), `<ol class="log">${logHTML()}</ol>`, { cls: 'scroll' });
     } else if (s === 'rules') {
       const ids = [...new Set(v.cfg.chars)].sort((a, b) => rankOf(a) - rankOf(b));
       const purples = Object.keys(DIST).filter(id => DIST[id][1] === 'purple');
@@ -982,7 +1010,7 @@ export function createUI(ctx) {
     if (head) {
       const controls = document.createElement('div');
       controls.className = 'sh-controls';
-      controls.innerHTML = collapse;
+      controls.innerHTML = (s !== 'roundInfo' ? `<button class="icon-btn" data-a="sheet" data-v="roundInfo" aria-label="${t('ui.roundInfo')}" title="${t('ui.roundInfo')}">${svg('help')}</button>` : '') + collapse;
       const close = $('[data-a="close"]', head);
       if (close) controls.appendChild(close);
       head.appendChild(controls);
@@ -996,7 +1024,7 @@ export function createUI(ctx) {
   function hideSheet() {
     if (!L.sheet) return;
     L.drawers.push({ sheet: L.sheet, multi: new Set(L.multi),
-      sel: L.sel, draftSel: L.draftSel, targetSel: L.targetSel, warSel: L.warSel, inspect: L.inspect,
+      sel: L.sel, keepSel: L.keepSel, draftSel: L.draftSel, targetSel: L.targetSel, warSel: L.warSel, inspect: L.inspect,
       paymentCard: L.paymentCard, paymentWizard: L.paymentWizard,
       title: $('h2, h1', els.sheet)?.textContent || '' });
     L.sheet = null;
@@ -1138,7 +1166,7 @@ export function createUI(ctx) {
           setTimeout(() => { L.endArmed = false; if (L.view) render(L.view); }, 3000);
           return sfx('click');
         }
-        L.sel = null; L.endArmed = false; return go({ t: 'end' });
+        L.sel = null; L.keepSel = null; L.endArmed = false; return go({ t: 'end' });
       }
       case 'settings': return ctx.openSettings();
       case 'smithy': closeSheet(); return go({ t: 'smithy' });
@@ -1158,7 +1186,12 @@ export function createUI(ctx) {
         L.sel = null;
         return go({ t: 'build', uid: card.uid });
       }
-      case 'keep': return go({ t: 'keep', uids: [el.dataset.uid] });
+      case 'keep': L.keepSel = el.dataset.uid; return renderSheet();
+      case 'keepGo': {
+        if (!view.turn?.pending?.cards?.some(c => c.uid === L.keepSel)) return;
+        const uid = L.keepSel; L.keepSel = null;
+        return go({ t: 'keep', uids: [uid] });
+      }
       case 'kill': case 'rob':
         sfx('click');
         if (L.targetSel !== +v) { L.targetSel = +v; return renderSheet(); }
@@ -1356,6 +1389,6 @@ export function createUI(ctx) {
     relang() { chrome(); renderChronicle(); if (L.view) render(L.view); },
     show() { root.classList.add('on'); syncChronicle(); },
     hide() { closeDetails(); root.classList.remove('on'); syncChronicle(); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; renderChronicle(); L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(true); },
-    resetLog() { L.log = []; renderChronicle(); L.evShown = undefined; L.shown = null; L.spySeen = null; },
+    resetLog() { L.roundInfo = null; L.keepSel = null; L.log = []; renderChronicle(); L.evShown = undefined; L.shown = null; L.spySeen = null; },
   };
 }

@@ -1,9 +1,9 @@
 // Guided first game: a spotlight on the control that matters right now and a short bubble saying what to
 // do. Steps advance when the player does the thing (or taps "Got it" for explanations). Steps that don't
 // apply this time (nothing affordable, no active power) are skipped as soon as a later step applies.
-import { t } from './i18n.js?v=86d31ff1';
-import { CHAR } from './data.js?v=86d31ff1';
-import { constructionOptions } from './engine.js?v=86d31ff1';
+import { t } from './i18n.js?v=4da4b0fa';
+import { CHAR } from './data.js?v=4da4b0fa';
+import { constructionOptions } from './engine.js?v=4da4b0fa';
 
 const KEY = 'c3d.tut';
 const ACTIVE_POWER = ['assassin', 'thief', 'magician', 'warlord', 'wizard', 'seer', 'navigator', 'scholar'];
