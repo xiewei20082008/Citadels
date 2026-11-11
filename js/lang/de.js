@@ -1,5 +1,6 @@
 // Deutsch (long compounds carry soft hyphens so they wrap on small cards). Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "ui.pinChronicle": "Chronik anheften",
   "ui.districtEffects": "Gebäudeeffekte",
   "ui.pass": "Passen",
   "ui.payment": "Zahlung wählen",

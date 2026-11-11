@@ -1,5 +1,6 @@
 // 한국어. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "ui.pinChronicle": "연대기 고정",
   "ui.districtEffects": "건물 효과",
   "ui.pass": "넘기기",
   "ui.payment": "지불 방식",

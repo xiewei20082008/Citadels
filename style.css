@@ -401,6 +401,26 @@ svg.ico { width: 1.25em; height: 1.25em; flex: none; }
 .log li.lk-build { color: var(--ink); }
 .log li.lk-destroy, .log li.lk-kill, .log li.lk-robbed { color: #f0a59b; }
 .log li.lk-complete, .log li.lk-over { color: var(--gold-hi); font-weight: 600; }
+
+/* Pinning reserves board space only on displays wide enough for both panes. */
+.chronicle-sidebar, .icon-btn.chronicle-toggle { display: none; }
+@media (min-width: 1001px) {
+  :root { --chronicle-width: clamp(280px, 20vw, 360px); }
+  .icon-btn.chronicle-toggle { display: inline-flex; }
+  .chronicle-switch { width: 24px; height: 14px; border: 1px solid var(--ink-3); border-radius: 999px; padding: 2px; }
+  .chronicle-switch::after { content: ''; display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-2); transition: transform .15s; }
+  .chronicle-toggle[aria-checked="true"] { border-color: var(--gold); color: var(--gold-hi); }
+  .chronicle-toggle[aria-checked="true"] .chronicle-switch { border-color: var(--gold); }
+  .chronicle-toggle[aria-checked="true"] .chronicle-switch::after { transform: translateX(10px); background: var(--gold); }
+  .chronicle-pinned #board { right: calc(var(--chronicle-width) + 32px); }
+  .chronicle-pinned #hud.on .chronicle-sidebar {
+    position: absolute; right: 18px; width: var(--chronicle-width); display: flex; flex-direction: column;
+    min-height: 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px;
+    background: var(--glass-2); pointer-events: auto;
+  }
+  .chronicle-sidebar h2 { flex: none; margin: 0 0 12px; font: 600 18px var(--f-disp); color: var(--gold-hi); }
+  .chronicle-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; overflow-anchor: none; }
+}
 .rules h3 { font-family: var(--f-disp); color: var(--gold); font-size: 15px; margin: 16px 0 6px; letter-spacing: 0.05em; }
 .rules p, .rules li { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; margin: 4px 0; }
 .rules b { color: var(--ink); }

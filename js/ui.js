@@ -1,15 +1,15 @@
 // In-game HUD: top bar, call track, seat labels, hand dock, action buttons, sheets (modals),
 // character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM.
 
-import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=30558915';
+import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=86d31ff1';
 import {
   rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost, threatTargets, completionCount, constructionOptions, constructionPlan, armoryError,
-} from './engine.js?v=30558915';
-import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=30558915';
-import { svg, ROMAN } from './icons.js?v=30558915';
-import { sfx } from './sfx.js?v=30558915';
-import { prefs, alertTurn, vibrate } from './settings.js?v=30558915';
-import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=30558915';
+} from './engine.js?v=86d31ff1';
+import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=86d31ff1';
+import { svg, ROMAN } from './icons.js?v=86d31ff1';
+import { sfx } from './sfx.js?v=86d31ff1';
+import { prefs, setChroniclePinned, alertTurn, vibrate } from './settings.js?v=86d31ff1';
+import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=86d31ff1';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -39,6 +39,9 @@ export function createUI(ctx) {
         <div class="actions"></div>
       </div>
     </section>
+    <aside id="chronicle-sidebar" class="chronicle-sidebar" aria-labelledby="chronicle-title">
+      <h2 id="chronicle-title"></h2><div class="chronicle-body" tabindex="0"><ol class="log"></ol></div>
+    </aside>
     <div class="sheet-wrap"><div id="game-sheet" class="sheet" role="dialog" aria-modal="true"></div></div>
     <button class="btn sheet-drawer" data-a="restoreSheet" aria-controls="game-sheet" aria-expanded="false" hidden></button>
     <div class="tip" role="tooltip" aria-hidden="true"></div>
@@ -49,6 +52,7 @@ export function createUI(ctx) {
     banner: $('.banner', root), dock: $('.dock', root), prompt: $('.prompt', root), me: $('.me-panel', root),
     hand: $('.hand', root), actions: $('.actions', root), wrap: $('.sheet-wrap', root), sheet: $('.sheet', root),
     tip: $('.tip', root), drawer: $('.sheet-drawer', root), details: $('.item-details', root),
+    chronicle: $('.chronicle-sidebar', root), logBody: $('.chronicle-body', root), logList: $('.chronicle-sidebar .log', root),
   };
 
   function chrome() {
@@ -59,21 +63,45 @@ export function createUI(ctx) {
         <div class="emote-wrap"><button class="icon-btn" data-a="emotes" title="${t('ui.react')}">😀</button>
           <div class="emote-pal">${EMOTES.map(e => `<button data-a="emote" data-v="${e}">${e}</button>`).join('')}</div></div>
         <button class="icon-btn" data-a="overview" title="${t('ui.resetView')}">${svg('focus')}</button>
+        <button class="icon-btn chronicle-toggle" data-a="pinChronicle" role="switch" aria-checked="${!!prefs.chroniclePinned}" aria-controls="chronicle-sidebar" aria-label="${t('ui.pinChronicle')}" title="${t('ui.pinChronicle')}"><span class="chronicle-switch" aria-hidden="true"></span></button>
         <button class="icon-btn" data-a="sheet" data-v="log" title="${t('ui.log')}">${svg('log')}</button>
         <button class="icon-btn" data-a="sheet" data-v="rules" title="${t('ui.rules')}">${svg('help')}</button>
         <button class="icon-btn" data-a="settings" title="${t('set.title')}">${svg('gear')}</button>
       </div>`;
     els.round = $('.round-chip', els.top);
     els.track = $('.calltrack', els.top);
+    $('#chronicle-title', root).textContent = t('ui.log');
   }
   chrome();
 
   // local (non-game) UI state
   const L = { drawers: [], sel: null, sheet: null, multi: new Set(), inspect: null, log: [], view: null, labelEls: new Map(), hint: null, shown: null };
 
-  const insets = () => ctx.scene.setInsets({ top: els.top.offsetHeight + 8, bottom: els.dock.offsetHeight + 8 });
+  const insets = () => {
+    const top = els.top.offsetHeight + 8, bottom = els.dock.offsetHeight + 8;
+    ctx.scene.setInsets({ top, bottom });
+    els.chronicle.style.top = `${top}px`;
+    els.chronicle.style.bottom = `${bottom}px`;
+  };
   const hudSize = new ResizeObserver(insets);
   hudSize.observe(els.top); hudSize.observe(els.dock);
+
+  function syncChronicle() {
+    document.documentElement.classList.toggle('chronicle-pinned', !!prefs.chroniclePinned && root.classList.contains('on'));
+    $('[data-a="pinChronicle"]', root).setAttribute('aria-checked', !!prefs.chroniclePinned);
+    insets();
+  }
+
+  // Reuse the public event text; retain the reading position until the reader returns to the bottom.
+  function renderChronicle() {
+    const body = els.logBody, follow = body.scrollHeight - body.scrollTop - body.clientHeight <= 24;
+    const top = body.scrollTop;
+    const oldHeight = body.scrollHeight;
+    const first = els.logList.firstElementChild?.dataset.id;
+    const removed = first && first !== String(L.log[0]?.id) ? els.logList.firstElementChild.offsetHeight : 0;
+    els.logList.innerHTML = L.log.map(l => `<li class="lk-${l.k}" data-id="${l.id}">${l.txt}</li>`).join('');
+    body.scrollTop = follow ? body.scrollHeight : Math.max(0, top - (oldHeight ? removed : 0));
+  }
 
   // ── helpers ──
   const P = pid => L.view.players[pid];
@@ -269,6 +297,7 @@ export function createUI(ctx) {
     const txt = evText(e);
     if (txt && e.k !== 'gold' && e.k !== 'cards') L.log.push({ id: e.id, k: e.k, txt });
     if (L.log.length > 300) L.log.splice(0, L.log.length - 300);
+    renderChronicle();
     if (L.sheet === 'log' || L.sheet === 'round') renderSheet();
     if (e.k !== 'pick' && e.k !== 'discard') feedLine();
     const mine = e.pid === view.me;
@@ -1031,6 +1060,7 @@ export function createUI(ctx) {
     if (!view) return;
     const me = view.players[view.me];
     switch (a) {
+      case 'pinChronicle': setChroniclePinned(!prefs.chroniclePinned); syncChronicle(); return;
       case 'hideSheet': return hideSheet();
       case 'restoreSheet': return restoreSheet();
       case 'close': return closeSheet();
@@ -1323,9 +1353,9 @@ export function createUI(ctx) {
 
   return {
     render, event, frame, toast, onPick, onHover, showEmote,
-    relang() { chrome(); if (L.view) render(L.view); },
-    show() { root.classList.add('on'); insets(); },
-    hide() { closeDetails(); root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(true); },
-    resetLog() { L.log = []; L.evShown = undefined; L.shown = null; L.spySeen = null; },
+    relang() { chrome(); renderChronicle(); if (L.view) render(L.view); },
+    show() { root.classList.add('on'); syncChronicle(); },
+    hide() { closeDetails(); root.classList.remove('on'); syncChronicle(); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; renderChronicle(); L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(true); },
+    resetLog() { L.log = []; renderChronicle(); L.evShown = undefined; L.shown = null; L.spySeen = null; },
   };
 }

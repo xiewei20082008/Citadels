@@ -1,14 +1,15 @@
 // Settings: one panel for language, sound, gameplay, display and your record, opened from the lobby
 // corner and the in-game top bar. Preferences persist in localStorage; other modules read `prefs`.
-import { t, getLang, setLang, LANGS } from './i18n.js?v=30558915';
-import { svg } from './icons.js?v=30558915';
-import { sfx, soundOn, setSound, musicEnabled, setMusic, volume, setVolume, TRACKS, musicTrack, setTrack } from './sfx.js?v=30558915';
+import { t, getLang, setLang, LANGS } from './i18n.js?v=86d31ff1';
+import { svg } from './icons.js?v=86d31ff1';
+import { sfx, soundOn, setSound, musicEnabled, setMusic, volume, setVolume, TRACKS, musicTrack, setTrack } from './sfx.js?v=86d31ff1';
 
 const KEY = 'c3d.settings';
 const systemCalm = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
-const DEFAULTS = { confirmEnd: true, turnAlert: true, tips: true, symbols: false, reduceMotion: systemCalm() };
+const DEFAULTS = { confirmEnd: true, turnAlert: true, tips: true, symbols: false, chroniclePinned: false, reduceMotion: systemCalm() };
 export const prefs = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY)) }; } catch { return { ...DEFAULTS }; } })();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch {} };
+export function setChroniclePinned(on) { prefs.chroniclePinned = on; save(); }
 
 let ctx = null, root = null, opener = null, resetArmed = false, tipsReset = false;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

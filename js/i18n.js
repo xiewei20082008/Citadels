@@ -1,15 +1,15 @@
 // English + Chinese live in the table below; other languages are one file each in ./lang/ (missing keys
 // fall back to English). t('key', {vars}) — '{name}' placeholders.
-import { CHAR } from './data.js?v=30558915';
-import ja from './lang/ja.js?v=30558915';
-import ko from './lang/ko.js?v=30558915';
-import es from './lang/es.js?v=30558915';
-import fr from './lang/fr.js?v=30558915';
-import zhTW from './lang/zh-TW.js?v=30558915';
-import de from './lang/de.js?v=30558915';
-import pt from './lang/pt.js?v=30558915';
-import ru from './lang/ru.js?v=30558915';
-import it from './lang/it.js?v=30558915';
+import { CHAR } from './data.js?v=86d31ff1';
+import ja from './lang/ja.js?v=86d31ff1';
+import ko from './lang/ko.js?v=86d31ff1';
+import es from './lang/es.js?v=86d31ff1';
+import fr from './lang/fr.js?v=86d31ff1';
+import zhTW from './lang/zh-TW.js?v=86d31ff1';
+import de from './lang/de.js?v=86d31ff1';
+import pt from './lang/pt.js?v=86d31ff1';
+import ru from './lang/ru.js?v=86d31ff1';
+import it from './lang/it.js?v=86d31ff1';
 
 export const EXTRA = { 'zh-TW': zhTW, ja, ko, es, fr, de, pt, ru, it };
 export const LANGS = {
@@ -276,6 +276,7 @@ const D = {
   'ui.slain': ['Slain', '被刺杀'],
   'ui.robbedMark': ['Robbed', '被盗'],
   'ui.log': ['Chronicle', '编年史'],
+  'ui.pinChronicle': ['Pin Chronicle', '固定编年史'],
   'ui.rules': ['How to play', '玩法说明'],
   'ui.menu': ['Menu', '菜单'],
   'ui.leave': ['Leave game', '离开游戏'],

@@ -1,5 +1,6 @@
 // Русский. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "ui.pinChronicle": "Закрепить хронику",
   "ui.districtEffects": "Эффекты кварталов",
   "ui.pass": "Пропустить",
   "ui.payment": "Выбрать оплату",
