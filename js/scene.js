@@ -41,7 +41,9 @@ export function createScene(root, hooks = {}) {
     for (const [pid, s] of seats) if (!wanted.has(pid)) { s.el.remove(); seats.delete(pid); }
     if (!wanted.has(focusPid)) focusPid = null;
     const actor = v.interrupt?.pid ?? (v.phase === 'turns' ? v.turn?.pid : v.phase === 'draft' ? v.draft.order[v.draft.idx] : null);
-    const players = [...v.players].sort((a, b) => (a.id !== v.me) - (b.id !== v.me) || a.id - b.id);
+    // Rotate the seating order around me, preserving the draft's direction and wraparound.
+    const n = v.players.length;
+    const players = [...v.players].sort((a, b) => (a.id - v.me + n) % n - (b.id - v.me + n) % n);
     for (const p of players) {
       const s = seats.get(p.id) || makeSeat(p.id);
       root.append(s.el);
