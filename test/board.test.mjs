@@ -75,6 +75,74 @@ try {
     await page.close();
   }
 
+  // Selecting the same item again inspects it, even when the clicks are far apart.
+  for (const [width, height] of [[1440, 900], [393, 852]]) {
+    const page = await pageFor(width, height);
+    await page.goto(url + '/test/board-ui.html?details');
+    await page.waitForFunction(() => !!window.fixture);
+    const card = page.locator('.hand .card[data-id="market"]');
+    await card.click();
+    await card.click();
+    const dialog = page.locator('.item-details[open]');
+    assert.equal(await dialog.count(), 1);
+    await page.keyboard.press('b');
+    assert.equal(await page.evaluate(() => window.fixture.state.players[0].hand.length), 2, 'inspection must not build');
+    const bounds = await dialog.boundingBox();
+    assert.ok(Math.abs(bounds.x + bounds.width / 2 - width / 2) < 2, 'details centered horizontally');
+    assert.ok(Math.abs(bounds.y + bounds.height / 2 - height / 2) < 2, 'details centered vertically');
+    assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= height, 'details fit mobile height');
+    if (screenshots) await page.screenshot({ path: `${screenshots}/selection-details-${width}.png` });
+    await page.keyboard.press('Escape');
+    assert.equal(await dialog.count(), 0);
+    assert.equal(await page.locator('.hand .card.sel[data-id="market"]').count(), 1, 'closing preserves selection');
+    await card.dblclick();
+    assert.equal(await dialog.count(), 1, 'rapid double-click also only inspects');
+    await dialog.locator('[data-a="build"]').click();
+    assert.equal(await page.evaluate(() => window.fixture.state.players[0].hand.length), 1, 'explicit build confirms');
+
+    // Reuse the real board/HUD with a fresh character draft.
+    await page.evaluate(async () => {
+      const { createGame } = await import('/js/engine.js');
+      const state = window.fixture.state;
+      Object.assign(state, createGame({ players: state.players.map(p => ({ name: p.name })), chars: [1, 2, 3, 4, 5, 6, 7, 8], seed: 42 }));
+      state.draft.order = [0, ...state.draft.order.filter(pid => pid !== 0)];
+      window.fixture.render();
+    });
+    const char = page.locator('.sheet [data-a="pick"]').first();
+    const charId = +(await char.getAttribute('data-char'));
+    const idx = await page.evaluate(() => window.fixture.state.draft.idx);
+    await char.click();
+    await char.click();
+    assert.equal(await dialog.count(), 1);
+    assert.equal(await page.evaluate(() => window.fixture.state.draft.idx), idx, 'inspection must not draft');
+    await dialog.locator('[data-a="detailsClose"]').click();
+    assert.equal(await page.locator(`.sheet [data-char="${charId}"].sel`).count(), 1);
+    await char.click();
+    await dialog.locator('[data-a="pickGo"]').click();
+    assert.ok(await page.evaluate(id => window.fixture.state.players.some(p => p.chars.includes(id)), charId), 'explicit choose drafts');
+    await page.close();
+  }
+
+  for (const [action, charId] of [['kill', 1], ['rob', 2]]) {
+    const page = await pageFor(393, 852);
+    await page.goto(url + '/test/board-ui.html');
+    await page.waitForFunction(() => !!window.fixture);
+    await page.evaluate(id => {
+      const s = window.fixture.state;
+      s.players[0].chars = [id]; s.turn.charId = id; s.turn.rank = id; s.call = id;
+      window.fixture.render();
+    }, charId);
+    await page.locator(`[data-a="sheet"][data-v="${action}"]`).click();
+    const target = page.locator(`.sheet [data-a="${action}"]`).first();
+    const rank = +(await target.getAttribute('data-v'));
+    await target.click(); await target.click();
+    assert.equal(await page.locator('.item-details[open]').count(), 1);
+    assert.ok(!await page.evaluate(a => window.fixture.state.turn.used[a], action), 'inspection must not use the ability');
+    await page.locator(`.item-details [data-a="${action}Go"]`).click();
+    assert.equal(await page.evaluate(a => window.fixture.state[a === 'kill' ? 'killed' : 'robbed'], action), rank);
+    await page.close();
+  }
+
   for (const marshal of [false, true]) {
     const page = await pageFor(1024, 768);
     await page.goto(url + '/test/board-ui.html' + (marshal ? '?marshal' : ''));
@@ -87,7 +155,11 @@ try {
     await page.locator('.sheet [data-a="hideSheet"]').click();
     await target.click();
     assert.equal(await page.locator(`.board-building.target[data-uid="${uid}"]`).count(), 1);
-    await page.locator(`[data-a="${marshal ? 'seizeGo' : 'destroyGo'}"]`).click();
+    const action = marshal ? 'seize' : 'destroy';
+    await page.locator(`.sheet [data-a="${action}"][data-uid="${uid}"]`).click();
+    assert.equal(await page.locator('.item-details[open]').count(), 1);
+    assert.equal(await page.locator(`.board-city[data-pid="1"] [data-uid="${uid}"]`).count(), 1, 'inspection must not take the target');
+    await page.locator(`.item-details [data-a="${action}Go"]`).click();
     assert.equal(await page.locator(`.board-city[data-pid="1"] [data-uid="${uid}"]`).count(), 0);
     assert.equal(await page.locator(`.board-city[data-pid="0"] [data-uid="${uid}"]`).count(), marshal ? 1 : 0);
     assert.equal(await page.locator('.board-building.target').count(), 0);
@@ -210,7 +282,7 @@ try {
   assert.ok(!requests.some(u => /models\.js|materials\.js|three(@|\/)/.test(u)), 'runtime loads authoring code');
   assert.deepEqual(errors, [], 'browser errors');
   await page.close();
-  console.log(`ok — ${DIST_IDS.length} baked assets; 4 layouts; touch details, recap dialog, build, inspect, destroy, seize, language, save recovery; WebGL blocked`);
+  console.log(`ok — ${DIST_IDS.length} baked assets; 4 layouts; repeat-click details, explicit draft/build/kill/rob/destroy/seize, touch details, recap dialog, inspect, language, save recovery; WebGL blocked`);
 } finally {
   await browser.close();
 }

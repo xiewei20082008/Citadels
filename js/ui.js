@@ -41,13 +41,14 @@ export function createUI(ctx) {
     </section>
     <div class="sheet-wrap"><div id="game-sheet" class="sheet" role="dialog" aria-modal="true"></div></div>
     <button class="btn sheet-drawer" data-a="restoreSheet" aria-controls="game-sheet" aria-expanded="false" hidden></button>
-    <div class="tip" role="tooltip" aria-hidden="true"></div>`;
+    <div class="tip" role="tooltip" aria-hidden="true"></div>
+    <dialog class="item-details" aria-labelledby="item-details-title"></dialog>`;
 
   const els = {
     top: $('.topbar', root), labels: $('.labels', root), floaters: $('.floaters', root), toasts: $('.toasts', root),
     banner: $('.banner', root), dock: $('.dock', root), prompt: $('.prompt', root), me: $('.me-panel', root),
     hand: $('.hand', root), actions: $('.actions', root), wrap: $('.sheet-wrap', root), sheet: $('.sheet', root),
-    tip: $('.tip', root), drawer: $('.sheet-drawer', root),
+    tip: $('.tip', root), drawer: $('.sheet-drawer', root), details: $('.item-details', root),
   };
 
   function chrome() {
@@ -338,6 +339,7 @@ export function createUI(ctx) {
 
   // ── render ──
   function render(view) {
+    closeDetails();
     const prevMe = L.view?.me;
     L.view = view;
     const me = view.players[view.me];
@@ -1034,13 +1036,12 @@ export function createUI(ctx) {
       case 'emotes': els.top.classList.toggle('emoting'); return;
       case 'emote': els.top.classList.remove('emoting'); return ctx.emote(v);
       case 'inspect': L.inspect = +v; ctx.scene.focus(+v); return openSheet('inspect');
-      // characters: the first tap selects (and shows what it means for you), a second tap or the button confirms
+      // Selecting again inspects; only the explicit action button confirms.
       case 'pick': case 'discard': {
         const id = +el.dataset.char;
         sfx('click');
         if (L.draftSel !== id) { L.draftSel = id; return renderSheet(); }
-        L.draftSel = null;
-        return go({ t: a, charId: id });
+        return showDetails(el, `${a}Go`);
       }
       case 'pickGo': case 'discardGo':
         if (!L.draftSel) return;
@@ -1107,8 +1108,9 @@ export function createUI(ctx) {
       case 'smithy': closeSheet(); return go({ t: 'smithy' });
       case 'card': {
         const uid = el.dataset.uid;
+        if (L.sel === uid) return showDetails(el, 'build');
         if (el.dataset.why) toast(el.dataset.why);
-        L.sel = L.sel === uid ? null : uid;
+        L.sel = uid;
         sfx('click');
         return render(view);
       }
@@ -1124,7 +1126,7 @@ export function createUI(ctx) {
       case 'kill': case 'rob':
         sfx('click');
         if (L.targetSel !== +v) { L.targetSel = +v; return renderSheet(); }
-        // falls through: a second tap on the selected character confirms
+        return showDetails(el, `${a}Go`);
       case 'killGo': case 'robGo': {
         const rank = L.targetSel;
         if (!rank) return;
@@ -1155,7 +1157,7 @@ export function createUI(ctx) {
       case 'seize': case 'destroy':
         sfx('click');
         if (L.warSel !== el.dataset.uid) { L.warSel = el.dataset.uid; renderSheet(); return ctx.scene.highlight([L.warSel]); }
-        // falls through: tapping the selected building again confirms
+        return showDetails(el, `${a}Go`);
       case 'seizeGo': case 'destroyGo': {
         const marshal = a.startsWith('seize');
         const x = warTargets(view, marshal).find(w => w.ok && w.card.uid === L.warSel);
@@ -1175,7 +1177,9 @@ export function createUI(ctx) {
         L.paymentWizard = false; closeSheet(); L.sel = null; return go(action);
       }
       case 'museumStore': closeSheet(); return go({ t: 'museum', museum: el.dataset.museum, uid: el.dataset.uid });
-      case 'armoryTarget': L.armoryTarget = el.dataset.uid; return renderSheet();
+      case 'armoryTarget':
+        if (L.armoryTarget === el.dataset.uid) return showDetails(el, 'armoryGo');
+        L.armoryTarget = el.dataset.uid; return renderSheet();
       case 'armoryGo': { const action = L.armoryChoices?.[+v]; if (!action) return; closeSheet(); return go(action); }
       case 'theaterRole': L.theaterRole = +v; return renderSheet();
       case 'theaterPass': case 'theaterSwap': {
@@ -1191,14 +1195,8 @@ export function createUI(ctx) {
       case 'home': closeSheet(); return ctx.leave();
     }
   });
-  root.addEventListener('dblclick', e => {
-    const el = e.target.closest('.hand .card.playable');
-    if (!el) return;
-    L.sel = el.dataset.uid;
-    render(L.view);
-    $('[data-a="build"]', els.actions)?.click();
-  });
   addEventListener('keydown', e => {
+    if (els.details.open) return;
     if (!root.classList.contains('on') || e.target.closest?.('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
     const click = sel => { const b = root.querySelector(sel); if (b && !b.disabled) { b.click(); e.preventDefault(); } };
     const k = e.key.toLowerCase();
@@ -1220,6 +1218,7 @@ export function createUI(ctx) {
 
   // Hover previews and persistent click/tap details share the same content.
   function showTip(html, x, y, pinned = false) {
+    if (els.details.open) return;
     if (L.tipPinned && !pinned) return;
     L.tipPinned = pinned;
     els.tip.innerHTML = (pinned ? `<button class="tip-close" data-tip-close aria-label="${esc(t('ui.close'))}">${svg('close')}</button>` : '') + html;
@@ -1239,6 +1238,29 @@ export function createUI(ctx) {
   };
   const cardTip = card => `<b>${esc(dname(card))}</b> <span class="muted">· ${t('col.' + card.color)} · ${t('ui.cost', { n: card.cost })}</span>${ddesc(card.id) ? `<p>${esc(ddesc(card.id))}</p>` : ''}`;
   const charTip = id => `<b style="color:${CHAR[id].color}">${ROMAN[CHAR[id].rank]} · ${esc(cname(id))}</b><p>${esc(cabil(id))}</p>`;
+  function closeDetails() {
+    if (els.details.open) els.details.close();
+  }
+  function showDetails(item, action) {
+    hideTip(true);
+    const id = item.dataset.char, card = !id && { id: item.dataset.id, color: DIST[item.dataset.id][1], cost: DIST[item.dataset.id][0] };
+    const button = els.sheet.querySelector(`[data-a="${action}"]`) || els.actions.querySelector(`[data-a="${action}"]`);
+    const body = id ? charTip(+id) : cardTip(card);
+    els.details.innerHTML = `<div class="sh-head"><h2 id="item-details-title">${esc(id ? cname(+id) : dname(card))}</h2>
+      <button class="icon-btn" data-a="detailsClose" aria-label="${esc(t('ui.close'))}">${svg('close')}</button></div>
+      <div class="sh-body">${body}${item.dataset.why ? `<p class="warn">${esc(item.dataset.why)}</p>` : ''}</div>
+      ${button ? `<div class="sh-foot">${button.outerHTML}</div>` : ''}`;
+    els.details.showModal();
+  }
+  // Native dialog supplies focus trapping and Escape; closing preserves selection.
+  els.details.addEventListener('close', () => {
+    if (!els.details.open) els.details.replaceChildren();
+  });
+  els.details.addEventListener('click', e => {
+    if (e.target.closest('[data-a="detailsClose"]')) {
+      closeDetails(); e.stopPropagation();
+    } else if (e.target.closest('[data-a]')) closeDetails();
+  });
   root.addEventListener('pointerover', e => {
     if (e.pointerType !== 'mouse') return;
     const c = e.target.closest('.card[data-id]'), ch = e.target.closest('[data-char]:not(.ccard)');
@@ -1251,6 +1273,7 @@ export function createUI(ctx) {
   // Show after the click finishes, so touch pointer-out and re-renders can't erase it.
   document.addEventListener('click', e => {
     if (!root.classList.contains('on')) return;
+    if (els.details.open) return;
     if (els.tip.contains(e.target)) {
       if (e.target.closest('[data-tip-close]')) hideTip(true);
       return;
@@ -1261,7 +1284,7 @@ export function createUI(ctx) {
     const html = item.dataset.char ? charTip(+item.dataset.char)
       : cardTip({ id: item.dataset.id, color: DIST[item.dataset.id][1], cost: DIST[item.dataset.id][0] })
         + (item.dataset.why ? `<p class="warn">${esc(item.dataset.why)}</p>` : '');
-    queueMicrotask(() => { if (root.classList.contains('on')) showTip(html, r.left + r.width / 2, r.top, true); });
+    queueMicrotask(() => { if (root.classList.contains('on') && !els.details.open) showTip(html, r.left + r.width / 2, r.top, true); });
   }, true);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && L.tipPinned) { hideTip(true); e.stopPropagation(); } }, true);
   root.addEventListener('pointerout', e => { if (!e.relatedTarget || !root.contains(e.relatedTarget)) hideTip(); });
@@ -1274,6 +1297,7 @@ export function createUI(ctx) {
       const tgt = warTargets(L.view, targeting === 'marshal').find(x => x.card.uid === h.card.uid && x.ok);
       if (tgt) {
         if (hiddenTargeting) openSheet(targeting);
+        if (L.warSel === tgt.card.uid) return showDetails({ dataset: { id: tgt.card.id } }, targeting === 'marshal' ? 'seizeGo' : 'destroyGo');
         L.warSel = tgt.card.uid; sfx('click'); renderSheet(); return ctx.scene.highlight([tgt.card.uid]);
       }
     }
@@ -1295,7 +1319,7 @@ export function createUI(ctx) {
     render, event, frame, toast, onPick, onHover, showEmote,
     relang() { chrome(); if (L.view) render(L.view); },
     show() { root.classList.add('on'); insets(); },
-    hide() { root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(true); },
+    hide() { closeDetails(); root.classList.remove('on'); L.sheet = null; L.drawers = []; els.drawer.hidden = true; L.log = []; L.shown = null; L.labelEls.forEach(el => el.remove()); L.labelEls.clear(); els.wrap.classList.remove('open'); hideTip(true); },
     resetLog() { L.log = []; L.evShown = undefined; L.shown = null; L.spySeen = null; },
   };
 }
