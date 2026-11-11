@@ -5,7 +5,7 @@
 import { CHAR, COLORS, makeDeck } from './data.js';
 
 const MAX_EV = 120;
-export const VERSION = 5; // Persistent construction taxes and Marshal acquisitions
+export const VERSION = 6; // Threat decisions and deferred character effects
 const MAX_ROUNDS = 40; // ponytail: hard stop for degenerate games (empty deck + empty hands)
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ export function createGame(cfg) {
     deck: [], round: 0, phase: 'draft', crown: 0,
     draft: null, call: 0, turn: null, killed: null, robbed: null, robber: null, revealed: [], interrupt: null,
     firstComplete: null, scores: null, winner: null, ev: [], evSeq: 0,
-    warrants: null, constructionSeq: 0, taxPool: 0,
+    warrants: null, constructionSeq: 0, taxPool: 0, threats: null, threatSeq: 0,
   };
   s.deck = shuffle(s, makeDeck());
   s.players.forEach(p => { p.hand = draw(s, 4); });
@@ -100,6 +100,8 @@ export function createGame(cfg) {
 function startRound(s) {
   s.round++;
   s.warrants = null;
+  s.threats = null;
+  s.interrupt = null;
   s.phase = 'draft';
   s.turn = null; s.call = 0; s.killed = null; s.robbed = null; s.robber = null; s.revealed = [];
   s.players.forEach(p => { p.chars = []; p.saw = []; p.lastRank = 0; });
@@ -167,6 +169,18 @@ function beginTurn(s, p, charId) {
     bump(thief, 'stole', n); bump(p, 'robbed', n);
     emit(s, 'robbed', { from: p.id, to: thief.id, n });
   }
+  if (s.threats?.targets.includes(charId) && s.threats.status[charId] === 'assigned') {
+    s.turn.threat = 'gather';
+    s.turn.threatId = ++s.threatSeq;
+  } else applyCharacterEffects(s);
+}
+
+// Threatened characters receive these only after their resource action and threat.
+function applyCharacterEffects(s) {
+  const T = s.turn;
+  if (T.effectsApplied) return;
+  T.effectsApplied = true;
+  const p = s.players[T.pid], charId = T.charId;
   const c = CHAR[charId];
   if (c.crown) {
     s.crown = p.id;
@@ -190,6 +204,35 @@ function beginTurn(s, p, charId) {
   if (charId === 9) {
     const n = s.players.length, king = holderOf(s, 4);
     if (king && king.id !== p.id && [1, n - 1].includes(Math.abs(king.id - p.id))) gain(s, p, 3, 'queen');
+  }
+}
+
+export function threatTargets(s) {
+  return s.cfg.chars.filter(id => rankOf(id) !== 1 && rankOf(id) !== s.killed && rankOf(id) !== s.bewitched);
+}
+
+function advanceThreat(s) {
+  const T = s.turn;
+  if (T.threat !== 'gather' || !T.income || T.pending) return;
+  T.threat = 'bribe';
+  s.interrupt = { k: 'threatResponse', pid: T.pid, target: T.pid,
+    charId: T.charId, id: T.threatId, round: s.round };
+}
+
+function closeThreat(s, status) {
+  s.threats.status[s.turn.charId] = status;
+  s.interrupt = null;
+  s.turn.threat = 'done';
+  applyCharacterEffects(s);
+}
+
+// Transfers may alias in two-character games; never create gold or tax them.
+function threatTransfer(s, from, to, n, bribe) {
+  if (from !== to && n > 0) {
+    s.players[from].gold -= n;
+    s.players[to].gold += n;
+    bump(s.players[to], bribe ? 'bribesReceived' : 'stole', n);
+    bump(s.players[from], bribe ? 'bribesPaid' : 'robbed', n);
   }
 }
 
@@ -314,6 +357,39 @@ function actInner(state, pid, a, inPlace = false) {
 
   if (s.interrupt) { // someone else's decision pauses the active character
     const I = s.interrupt;
+    if (I.k === 'threatResponse' || I.k === 'threatReveal') {
+      if (I.pid !== pid || a.t !== I.k) return fail('waiting for threat response');
+      if (a.id !== I.id || a.round !== I.round || a.charId !== I.charId ||
+        s.phase !== 'turns' || s.round !== I.round || s.turn?.charId !== I.charId ||
+        s.turn.pid !== I.target || s.turn.threatId !== I.id || !s.threats ||
+        s.turn.threat !== (I.k === 'threatResponse' ? 'bribe' : 'reveal') ||
+        (I.k === 'threatResponse' ? typeof a.bribe !== 'boolean' : typeof a.reveal !== 'boolean'))
+        return fail('stale or invalid threat response');
+      const from = I.target, to = s.threats.pid;
+      if (I.k === 'threatResponse') {
+        if (a.bribe) {
+          const n = Math.floor(s.players[from].gold / 2);
+          threatTransfer(s, from, to, n, true);
+          emit(s, 'bribe', { from, to, n, charId: I.charId });
+          closeThreat(s, 'bribed');
+        } else {
+          s.turn.threat = 'reveal';
+          s.interrupt = { ...I, k: 'threatReveal', pid: to };
+          emit(s, 'threatRefused', { pid: from, charId: I.charId });
+        }
+      } else if (a.reveal) {
+        const flower = s.threats.flower === I.charId;
+        const n = flower ? s.players[from].gold : 0;
+        threatTransfer(s, from, to, n, false);
+        s.threats.faces[I.charId] = flower;
+        emit(s, 'threatRevealed', { from, to, n, charId: I.charId, flower });
+        closeThreat(s, 'revealed');
+      } else {
+        emit(s, 'threatPassed', { pid: to, charId: I.charId });
+        closeThreat(s, 'passed');
+      }
+      return s;
+    }
     if (I.k === 'warrant') {
       if (I.pid !== pid || a.t !== 'warrantResponse') return fail('waiting for warrant response');
       if (a.id !== I.id || a.round !== I.round || typeof a.take !== 'boolean') return fail('stale or invalid warrant response');
@@ -362,6 +438,7 @@ function actInner(state, pid, a, inPlace = false) {
   if (s.phase !== 'turns' || !s.turn || s.turn.pid !== pid) return fail('not your turn');
 
   const T = s.turn, pend = T.pending, cid = T.charId;
+  if (T.threat === 'gather' && !['gold', 'draw', 'keep'].includes(a.t)) return fail('gather resources and resolve the threat first');
   const needFree = () => (pend ? 'finish the current choice first' : null);
   const takeFromHand = uid => { const i = p.hand.findIndex(c => c.uid === uid); return i < 0 ? null : p.hand.splice(i, 1)[0]; };
   const ability = (charId, extra) => {
@@ -372,6 +449,18 @@ function actInner(state, pid, a, inPlace = false) {
   let err;
 
   switch (a.t) {
+    case 'threats': {
+      if ((err = ability(21))) return fail(err);
+      const targets = a.targets, legal = threatTargets(s);
+      if (a.round !== s.round || a.charId !== cid || !Array.isArray(targets) || targets.length !== 2 ||
+        new Set(targets).size !== 2 || ![...targets].every(id => Number.isInteger(id) && legal.includes(id)) ||
+        !targets.includes(a.flower)) return fail('bad threats');
+      T.used.ability = true;
+      s.threats = { pid, targets: [...targets].sort((a, b) => a - b), flower: a.flower,
+        status: Object.fromEntries(targets.map(id => [id, 'assigned'])), faces: {} };
+      emit(s, 'threats', { pid, targets: s.threats.targets });
+      return s;
+    }
     case 'collectTax': {
       if ((err = ability(19))) return fail(err);
       if (a.round !== s.round || a.charId !== cid || !s.cfg.chars.includes(19) || s.killed === T.rank)
@@ -431,6 +520,7 @@ function actInner(state, pid, a, inPlace = false) {
       if ((err = needFree()) || (T.income && (err = 'income taken'))) return fail(err);
       T.income = true;
       gain(s, p, 2, 'take');
+      advanceThreat(s);
       return s;
 
     case 'draw': {
@@ -441,6 +531,7 @@ function actInner(state, pid, a, inPlace = false) {
       emit(s, 'draw', { pid, n: cards.length });
       if (has(p, 'library')) p.hand.push(...cards);
       else T.pending = { k: 'keep', cards, n: 1 };
+      advanceThreat(s);
       return s;
     }
 
@@ -454,6 +545,7 @@ function actInner(state, pid, a, inPlace = false) {
       s.deck.push(...rest);
       if (pend.shuffle) shuffle(s, s.deck); // Scholar: shuffled back into the whole deck
       T.pending = null;
+      advanceThreat(s);
       return s;
     }
 
@@ -658,5 +750,7 @@ export function viewFor(s, pid) {
   if (v.turn?.pending && v.turn.pid !== pid) v.turn.pending = { k: v.turn.pending.k };
   if (v.turn && v.turn.pid !== pid) delete v.turn.spyPeek;
   if (v.warrants && v.warrants.pid !== pid && !v.warrants.revealed && !over) v.warrants.signed = null;
+  // Even paid-off/finished markers retain their private original identity.
+  if (v.threats && v.threats.pid !== pid) v.threats.flower = null;
   return v;
 }

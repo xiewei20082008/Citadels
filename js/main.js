@@ -186,7 +186,7 @@ function aiReact(e) { // AIs occasionally react, so the table feels inhabited
   const r = Math.random();
   let pick = null;
   if (['destroy', 'seize'].includes(e.k) && ai(e.target) && r < 0.6) pick = [e.target, '😡'];
-  else if (e.k === 'robbed' && ai(e.from) && r < 0.5) pick = [e.from, '😮'];
+  else if (['robbed', 'bribe', 'threatRevealed'].includes(e.k) && e.n > 0 && e.from !== e.to && ai(e.from) && r < 0.5) pick = [e.from, '😮'];
   else if (e.k === 'destroy' && ai(e.pid) && r < 0.35) pick = [e.pid, '😈'];
   else if (e.k === 'complete' && ai(e.pid)) pick = [e.pid, '👑'];
   else if (e.k === 'over' && ai(e.winner)) pick = [e.winner, '🎉'];

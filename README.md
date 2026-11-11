@@ -27,6 +27,8 @@ To play the **Spy**, open **Custom** character selection and choose Spy at rank 
 
 In **Custom**, choose **Marshal** at rank VIII or **Tax Collector** at rank IX. Marshal pays an opponent the full cost (up to three gold) to seize one eligible district. With Tax Collector in the cast, construction pays one tax from the final owner's remaining gold; its own character turn is exempt. Collect the shared pool once during its turn, or leave it for a later round. Keep and Great Wall retain their existing Warlord-only effects.
 
+Choose **Blackmailer** at rank II to place two hidden threats: one flower and one decoy. Threatened characters gather resources, then choose whether to pay half their gold (rounded down) to remove the marker unseen. After refusal, Blackmailer may reveal it; the flower takes all their gold. Character abilities resume afterward, including Patrician's crown and noble-card draw. Threats and Magistrate warrants can coexist on the same character.
+
 ## Features
 
 - **2–7 players**, solo or online.
@@ -58,7 +60,7 @@ node test/ai-duel.mjs 400     # Tuned vs baseline Cunning AI win rate
 
 For a repeatable Spy interface check, open `http://localhost:5173/test/spy-ui.html` while the local server is running. This fixture uses the real HUD and engine with six opponents, including a penniless target holding four trade districts. Check the selection and inspection panels at 393×852 as well as on desktop.
 
-For Marshal targeting and the public tax pool, open `http://localhost:5173/test/tax-marshal-ui.html`. Add `?tax` for collection, `?tax&pending` for warrant/save recovery, or `&lang=de` to inspect translations. Fixture reloads preserve their state within the tab. Review desktop and 393×852 layouts. Save version 5 excludes older saves because they lack persistent tax state.
+For Marshal targeting and the public tax pool, open `http://localhost:5173/test/tax-marshal-ui.html`. Add `?tax` for collection, `?tax&pending` for warrant/save recovery, or `&lang=de` to inspect translations. Fixture reloads preserve their state within the tab. Review desktop and 393×852 layouts. Save version 6 excludes older saves because they lack threat decisions and deferred character-effect state.
 
 | File | Role |
 |---|---|

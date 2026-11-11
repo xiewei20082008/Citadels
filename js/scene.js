@@ -132,6 +132,15 @@ export function createScene(root, hooks = {}) {
     },
     fx(e) {
       if (calm) return;
+      if (e.k === 'bribe' || e.k === 'threatRevealed') {
+        for (const pid of new Set([e.from, e.to])) {
+          const seat = seats.get(pid);
+          if (!seat) continue;
+          seat.el.classList.add('board-flash');
+          later(() => seat.el.classList.remove('board-flash'), 650);
+        }
+        return;
+      }
       const s = seats.get(e.pid);
       if (!s) return;
       s.el.classList.add('board-flash');

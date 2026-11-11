@@ -7,7 +7,7 @@ import { tutorialSeen } from './tutorial.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const RANK_OPTS = { 1: [1, 17], 2: [2, 18], 3: [3, 11, 15], 4: [4, 12], 5: [5, 13], 6: [6, 16], 7: [7, 10, 14], 8: [8, 20], 9: [9, 19, 0] };
+const RANK_OPTS = { 1: [1, 17], 2: [2, 18, 21], 3: [3, 11, 15], 4: [4, 12], 5: [5, 13], 6: [6, 16], 7: [7, 10, 14], 8: [8, 20], 9: [9, 19, 0] };
 
 function load() {
   try { return JSON.parse(localStorage.getItem('c3d.prefs')) || {}; } catch { return {}; }

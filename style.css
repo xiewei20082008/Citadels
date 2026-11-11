@@ -480,6 +480,7 @@ input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(230, 189, 10
 .ranks { display: none; gap: 6px; margin-top: 10px; }
 .ranks.open { display: grid; }
 .rank-row { display: flex; align-items: center; gap: 8px; }
+.rank-row .seg { min-width: 0; flex-wrap: wrap; }
 .rk { font-family: var(--f-disp); color: var(--gold); width: 30px; font-size: 13px; font-weight: 700; }
 .rank-row .seg button { padding: 5px 8px; font-size: 11.5px; }
 .strip { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; align-items: center; }
@@ -946,6 +947,7 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
 .warrant-choices .btn { white-space: normal; min-width: 0; padding: 8px; font-size: 12px; }
 .warrant-mark { position: absolute; right: 1px; top: 1px; color: #d9b267; font-size: 12px; line-height: 1; }
 .warrant-mark.signed { color: #fff1be; }
+.threat-mark { position: absolute; left: 1px; top: 1px; color: #f1afd3; font-size: 12px; line-height: 1; }
 /* Spy choices stay compact with all seven seats on a phone. */
 .spy-targets, .spy-colors { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .spy-targets .btn { flex: 1 1 44%; min-width: 0; flex-direction: column; gap: 4px; white-space: normal; overflow-wrap: anywhere; }

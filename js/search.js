@@ -29,13 +29,19 @@ export function determinize(v, me) {
     const targets = s.warrants.targets;
     s.warrants.signed = targets[Math.floor(Math.random() * targets.length)];
   }
+  if (s.threats && s.threats.flower === null) {
+    const b = s.threats;
+    const revealed = b.targets.find(id => b.faces[id] === true);
+    const possible = b.targets.filter(id => b.faces[id] !== false);
+    b.flower = revealed ?? possible[Math.floor(Math.random() * possible.length)];
+  }
   s.seed = (Math.random() * 2 ** 31) | 0;
   const known = new Set();
   const mark = cards => cards.forEach(c => !c.hidden && known.add(c.uid));
   s.players.forEach(p => { mark(p.city); if (p.id === me) mark(p.hand); });
   if (s.turn?.pending?.cards) mark(s.turn.pending.cards);
   if (s.turn?.spyPeek?.cards) mark(s.turn.spyPeek.cards);
-  if (s.interrupt) known.add(s.interrupt.card.uid);
+  if (s.interrupt?.card) known.add(s.interrupt.card.uid);
   const pool = shuffle(ALL.filter(c => !known.has(c.uid)).map(c => ({ ...c })));
   for (const p of s.players) if (p.id !== me) {
     // A Wizard peek is a copy of the target's hand, not a separate card zone.

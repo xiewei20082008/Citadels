@@ -12,7 +12,7 @@
 import { CHAR, COLORS, makeDeck } from './data.js';
 import {
   rankOf, has, colorCount, buildCost, canPlace, destroyCost, shielded,
-  targetRanks, countsTowardLimit, score, canConfiscate, taxDue, seizeError, seizureCost, act,
+  targetRanks, countsTowardLimit, score, canConfiscate, taxDue, seizeError, seizureCost, act, threatTargets,
 } from './engine.js';
 import { search } from './search.js';
 
@@ -20,6 +20,7 @@ import { search } from './search.js';
 export const SEARCH = { on: true, budget: 120 };
 // Injectable AI randomness; never use or expose the private engine seed.
 export const WARRANT_RANDOM = { next: () => Math.random() };
+export const THREAT_RANDOM = { next: () => Math.random() };
 
 const TEMP = 0.25;
 // Tunables, overridable for A/B tests (test/ai-duel.mjs).
@@ -104,6 +105,7 @@ function turnValue(v, p, charId) {
   let v0 = 2 + income + canBuild;
   switch (key) {
     case 'magistrate': v0 += 2.5 + (opps.some(q => q.gold >= 4) ? 1 : 0); break;
+    case 'blackmailer': v0 += 1 + Math.max(0, ...opps.map(q => Math.floor((q.gold + 1) / 2))) * 0.8; break;
     case 'assassin': v0 += 1.8 + (Math.max(...opps.map(q => q.city.length)) >= goal - 2 ? 2 : 0); break;
     case 'thief': v0 += Math.max(0, ...opps.map(q => q.gold)) * 0.45; break;
     case 'spy': v0 += Math.max(0, ...spyOptions(v, p).map(o => o.utility)); break;
@@ -324,6 +326,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
   const me = v.players[pid];
 
   if (v.interrupt) { // Graveyard: buy the ruin back?
+    if (v.interrupt.k === 'threatResponse' || v.interrupt.k === 'threatReveal') return threatDecision(v, me, lookahead);
     if (v.interrupt.k === 'warrant') return warrantResponse(v, me);
     const c = v.interrupt.card;
     return { t: 'graveyard', take: me.gold >= 1 && canPlace(me, c) && (c.cost >= 3 || me.gold >= 3) };
@@ -358,11 +361,17 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
     return { t: 'seerGive', uids: sorted.slice(0, P.targets.length).map(c => c.uid) };
   }
 
+  if (T.threat === 'gather') return threatenedResources(v, me, lookahead);
+
   if (!T.used.ability) {
     const key = CHAR[T.charId].key;
     if (key === 'tax_collector' && v.taxPool > 0) return { t: 'collectTax', round: v.round, charId: T.charId };
     if (key === 'spy') return best(spyOptions(v, me), o => o.utility).action;
     if (key === 'magistrate') return assignWarrants(v, me);
+    if (key === 'blackmailer') {
+      const assignment = assignThreats(v, me);
+      if (assignment) return assignment;
+    }
     if (key === 'assassin') {
       const ranks = targetRanks(v, [1]).filter(r => !myRanks.includes(r));
       if (ranks.length && lookahead && SEARCH.on) return search(v, pid, ranks.map(rank => ({ t: 'kill', rank })), SEARCH.budget);
@@ -424,6 +433,8 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
 
 // Fallback when an AI choice turns out illegal: always make progress.
 export function safeAction(v, pid) {
+  if (v.interrupt?.k === 'threatResponse') return threatReply(v, { bribe: true });
+  if (v.interrupt?.k === 'threatReveal') return threatReply(v, { reveal: false });
   if (v.interrupt?.k === 'warrant') return { t: 'warrantResponse', id: v.interrupt.id, round: v.interrupt.round, take: false };
   if (v.interrupt) return { t: 'graveyard', take: false };
   if (v.phase === 'draft') return { t: v.draft.mustDiscard ? 'discard' : 'pick', charId: v.draft.options[0] };
@@ -432,6 +443,78 @@ export function safeAction(v, pid) {
   if (P?.k === 'wizard') return { t: 'wizTake', uid: P.cards[0].uid };
   if (P?.k === 'seerGive') return { t: 'seerGive', uids: me.hand.slice(0, P.targets.length).map(c => c.uid) };
   return v.turn.income ? { t: 'end' } : { t: 'gold' };
+}
+
+function threatReply(v, choice) {
+  const i = v.interrupt;
+  return { t: i.k, id: i.id, round: i.round, charId: i.charId, ...choice };
+}
+
+function flowerRisk(v, charId) {
+  const b = v.threats;
+  if (b.flower !== null) return Number(b.flower === charId);
+  const revealed = b.targets.find(id => b.faces[id] === true);
+  if (revealed !== undefined) return Number(revealed === charId);
+  // Resolved-but-unseen markers remain possible flower locations.
+  const possible = b.targets.filter(id => b.faces[id] !== false);
+  return possible.includes(charId) ? 1 / Math.max(1, possible.length) : 0;
+}
+
+function threatDecision(v, me, lookahead) {
+  const i = v.interrupt, b = v.threats;
+  if (i.k === 'threatReveal') return threatReply(v, { reveal: b.flower === i.charId && i.target !== me.id && v.players[i.target].gold > 0 });
+  const gold = me.gold, cost = Math.floor(gold / 2);
+  if (!cost || b.pid === me.id) return threatReply(v, { bribe: true });
+  if (lookahead && SEARCH.on) return search(v, me.id, [threatReply(v, { bribe: true }), threatReply(v, { bribe: false })], SEARCH.budget);
+  const risk = flowerRisk(v, i.charId);
+  const income = CHAR[i.charId].income ? colorCount(me, CHAR[i.charId].income) + (i.charId === 6 ? 1 : 0) : 0;
+  const budgetValue = remaining => remaining * 0.8 + Math.max(0, ...me.hand.filter(c => canPlace(me, c) && buildCost(me, c) <= remaining + income).map(c => c.cost * 0.35));
+  const bribeValue = budgetValue(gold - cost);
+  const refuseValue = risk * budgetValue(0) + (1 - risk) * budgetValue(gold);
+  return threatReply(v, { bribe: bribeValue >= refuseValue });
+}
+
+function threatenedResources(v, me, lookahead) {
+  const actions = [{ t: 'gold' }, ...(v.deckCount ? [{ t: 'draw' }] : [])];
+  if (lookahead && SEARCH.on && actions.length > 1) return search(v, me.id, actions, SEARCH.budget);
+  const risk = v.threats.pid === me.id ? 0 : flowerRisk(v, v.turn.charId);
+  const remaining = gold => gold - Math.min(Math.floor(gold / 2), risk * gold);
+  const income = CHAR[v.turn.charId].income ? colorCount(me, CHAR[v.turn.charId].income) + (v.turn.charId === 6 ? 1 : 0) : 0;
+  const value = gold => remaining(gold) * 0.8 + Math.max(0, ...me.hand.filter(c => canPlace(me, c) && buildCost(me, c) <= remaining(gold) + income).map(c => c.cost * 0.6));
+  const drawValue = has(me, 'library') ? (has(me, 'observatory') ? 3 : 2) : has(me, 'observatory') ? 1.4 : 1.1;
+  return v.deckCount && value(me.gold) + drawValue > value(me.gold + 2) ? { t: 'draw' } : { t: 'gold' };
+}
+
+function assignThreats(v, me) {
+  const probs = holdProbs(v, me), legal = threatTargets(v).sort((a, b) => a - b);
+  if (legal.length < 2) return null;
+  const values = new Map(legal.map(charId => {
+    let bribe = 0, theft = 0;
+    if (rankOf(charId) > v.call) {
+      const holders = me.chars.includes(charId) ? new Map([[me.id, 1]]) : probs.get(charId) || new Map();
+      for (const [pid, chance] of holders) {
+        if (pid === me.id) continue;
+        const p = v.players[pid];
+        const weight = 1 + Math.min(0.25, Math.max(0, threat(v, p) - threat(v, me)) / 100);
+        // Mix resource outcomes before rounding, excluding later character income.
+        for (const [extra, probability] of [[0, 0.4], [2, 0.6]]) {
+          const gold = p.gold + extra, payment = Math.floor(gold / 2);
+          const payChance = payment === 0 ? 1 : 0.6;
+          bribe += chance * probability * weight * payChance * payment;
+          theft += chance * probability * weight * (1 - payChance) * gold;
+        }
+      }
+    }
+    return [charId, { bribe, theft }];
+  }));
+  let chosen = null, top = -Infinity;
+  for (const flower of legal) for (const decoy of legal) {
+    if (flower === decoy) continue;
+    const f = values.get(flower), d = values.get(decoy);
+    const utility = (f.bribe + f.theft + d.bribe) * (0.88 + THREAT_RANDOM.next() * 0.24);
+    if (utility > top) { top = utility; chosen = { t: 'threats', targets: [flower, decoy], flower, round: v.round, charId: v.turn.charId }; }
+  }
+  return top > 0 ? chosen : null;
 }
 
 function assignWarrants(v, me) {

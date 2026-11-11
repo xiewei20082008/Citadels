@@ -1,6 +1,7 @@
 // Hand-drawn line emblems (48×48, stroke = currentColor). Used in the HUD and baked into 3D tokens.
 
 const C = {
+  blackmailer: '<path d="M6 13h36v26H6zM6 13l18 14 18-14"/><circle cx="24" cy="30" r="3"/><path d="M24 22c-7-7-11 4-3 5-8 2-4 11 3 6 7 5 11-4 3-6 8-1 4-12-3-5z"/>',
   tax_collector: '<path d="M8 7h21v32H8zM13 14h11M13 21h8"/><ellipse cx="33" cy="29" rx="9" ry="4"/><path d="M24 29v7c0 5 18 5 18 0v-7M24 36v6c0 5 18 5 18 0v-6"/>',
   marshal: '<path d="M8 8l16-4 16 4v15c0 12-16 21-16 21S8 35 8 23z"/><path d="M24 12v20M15 22h18M19 17l5-5 5 5"/>',
   spy: '<path d="M8 20h32M13 20l4-12h14l4 12"/><path d="M10 26c8-5 20-5 28 0l-3 9H13z"/><circle cx="18" cy="28" r="2"/><circle cx="30" cy="28" r="2"/><path d="M18 41h12"/>',
