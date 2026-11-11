@@ -1,15 +1,15 @@
 // In-game HUD: top bar, call track, seat labels, hand dock, action buttons, sheets (modals),
 // character-call banner, toasts, floating numbers, emotes and the end screen. Pure DOM.
 
-import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=5d07dddd';
+import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js?v=b067d2f4';
 import {
   rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost, threatTargets, completionCount, constructionOptions, constructionPlan, armoryError,
-} from './engine.js?v=5d07dddd';
-import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=5d07dddd';
-import { svg, ROMAN } from './icons.js?v=5d07dddd';
-import { sfx } from './sfx.js?v=5d07dddd';
-import { prefs, setChroniclePinned, alertTurn, vibrate } from './settings.js?v=5d07dddd';
-import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=5d07dddd';
+} from './engine.js?v=b067d2f4';
+import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js?v=b067d2f4';
+import { svg, ROMAN } from './icons.js?v=b067d2f4';
+import { sfx } from './sfx.js?v=b067d2f4';
+import { prefs, setChroniclePinned, alertTurn, vibrate } from './settings.js?v=b067d2f4';
+import { update as tutorialUpdate, tutorialActive } from './tutorial.js?v=b067d2f4';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
