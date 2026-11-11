@@ -453,6 +453,8 @@ svg.ico { width: 1.25em; height: 1.25em; flex: none; }
 }
 
 /* game over */
+.over-sheet { overflow-y: auto; overscroll-behavior: contain; }
+.over-sheet > * { flex-shrink: 0; }
 .over { text-align: center; min-width: 0; }
 .sheet { min-width: 0; }
 .over-ico svg { width: 60px; height: 60px; color: var(--gold); filter: drop-shadow(0 0 20px rgba(230, 189, 106, 0.6)); animation: float 3s ease-in-out infinite; }
