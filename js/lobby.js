@@ -1,9 +1,9 @@
 // Lobby screens: home, solo setup, host room, join room, waiting room.
-import { CHAR, PRESETS, AVATARS } from './data.js?v=4da4b0fa';
-import { t, cname, cabil, getLang, RULES } from './i18n.js?v=4da4b0fa';
-import { svg, ROMAN } from './icons.js?v=4da4b0fa';
-import { sfx } from './sfx.js?v=4da4b0fa';
-import { tutorialSeen } from './tutorial.js?v=4da4b0fa';
+import { CHAR, PRESETS, AVATARS } from './data.js?v=5d07dddd';
+import { t, cname, cabil, getLang, RULES } from './i18n.js?v=5d07dddd';
+import { svg, ROMAN } from './icons.js?v=5d07dddd';
+import { sfx } from './sfx.js?v=5d07dddd';
+import { tutorialSeen } from './tutorial.js?v=5d07dddd';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

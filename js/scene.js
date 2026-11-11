@@ -1,8 +1,8 @@
 // Event-driven 2D miniature board. Art is baked from the original models into
 // assets/districts; no WebGL, camera, post-processing or animation loop.
 // This module only receives each player's permitted view.
-import { HUE, SEAT_HUES } from './data.js?v=4da4b0fa';
-import { t, dname } from './i18n.js?v=4da4b0fa';
+import { HUE, SEAT_HUES } from './data.js?v=5d07dddd';
+import { t, dname } from './i18n.js?v=5d07dddd';
 
 export function createScene(root, hooks = {}) {
   const seats = new Map(), timers = new Set();
@@ -41,7 +41,9 @@ export function createScene(root, hooks = {}) {
     for (const [pid, s] of seats) if (!wanted.has(pid)) { s.el.remove(); seats.delete(pid); }
     if (!wanted.has(focusPid)) focusPid = null;
     const actor = v.interrupt?.pid ?? (v.phase === 'turns' ? v.turn?.pid : v.phase === 'draft' ? v.draft.order[v.draft.idx] : null);
-    const players = [...v.players].sort((a, b) => (a.id !== v.me) - (b.id !== v.me) || a.id - b.id);
+    // Rotate the seating order around me, preserving the draft's direction and wraparound.
+    const n = v.players.length;
+    const players = [...v.players].sort((a, b) => (a.id - v.me + n) % n - (b.id - v.me + n) % n);
     for (const p of players) {
       const s = seats.get(p.id) || makeSeat(p.id);
       root.append(s.el);
