@@ -18,10 +18,10 @@ export function createLobby(ctx) {
   const L = {
     screen: 'home', error: null, info: null,
     name: saved.name || '', avatar: saved.avatar || AVATARS[0],
-    opp: saved.opp || 3, chars: saved.chars || PRESETS.classic, goal: saved.goal || 8, level: 'hard', timer: saved.timer || 0,
+    opp: saved.opp || 3, chars: saved.chars || PRESETS.classic, goal: saved.goal || 8, level: 'hard',
     code: '', seats: [], roomCode: '', copied: false,
   };
-  const persist = () => { try { localStorage.setItem('c3d.prefs', JSON.stringify({ name: L.name, avatar: L.avatar, opp: L.opp, chars: L.chars, goal: L.goal, level: L.level, timer: L.timer })); } catch {} };
+  const persist = () => { try { localStorage.setItem('c3d.prefs', JSON.stringify({ name: L.name, avatar: L.avatar, opp: L.opp, chars: L.chars, goal: L.goal, level: L.level })); } catch {} };
   const presetOf = chars => Object.keys(PRESETS).find(k => [...PRESETS[k]].sort().join() === [...chars].sort().join()) || 'custom';
   const myName = () => L.name.trim() || t('lb.defaultName');
 
@@ -45,7 +45,6 @@ export function createLobby(ctx) {
     <div class="field row"><span>${t('lb.level')}</span><span>${t('lb.lvl.hard')}</span></div>
     <p class="note left lvl-note">${t('lb.lvlDesc.hard')}</p>`;
   };
-  const timerSetup = () => `<div class="field row"><span>${t('lb.timer')}</span><div class="seg">${[0, 60, 120].map(s => `<button class="${L.timer === s ? 'on' : ''}" data-a="timer" data-v="${s}">${s ? s + 's' : t('lb.off')}</button>`).join('')}</div></div>`;
 
   const seatsList = (host) => `<ol class="seats">${L.seats.map((s, i) => `<li>${`<span class="av">${esc(s.avatar)}</span>`}<span class="nm">${esc(s.name)}</span>
       <span class="tag">${i === 0 ? t('lb.host.you') : s.ai ? t('lb.ai') : t('lb.human')}</span>
@@ -78,7 +77,7 @@ export function createLobby(ctx) {
           <button class="btn primary big wide" data-a="startSolo">${svg('play')}<span>${t('lb.start')}</span></button>`;
         break;
       case 'host':
-        body = `${back}<h2>${t('lb.host')}</h2>${err}${identity()}${charSetup()}${timerSetup()}
+        body = `${back}<h2>${t('lb.host')}</h2>${err}${identity()}${charSetup()}
           <button class="btn primary big wide" data-a="createRoom">${svg('link')}<span>${t('lb.host')}</span></button>`;
         break;
       case 'room':
@@ -132,10 +131,9 @@ export function createLobby(ctx) {
       case 'goal': L.goal = +v; break;
       case 'settings': return ctx.openSettings();
       case 'tutorial': persist(); return ctx.startTutorial({ name: myName(), avatar: L.avatar });
-      case 'timer': L.timer = +v; break;
       case 'continue': return ctx.cont();
       case 'startSolo': if (L.opp === 1 && L.chars.includes(22)) { L.error = t('ui.emperorPlayers'); render(); return; } persist(); return ctx.startSolo({ name: myName(), avatar: L.avatar, opp: L.opp, chars: L.chars, goal: L.goal, level: L.level });
-      case 'createRoom': persist(); return ctx.createRoom({ name: myName(), avatar: L.avatar, chars: L.chars, goal: L.goal, level: L.level, timer: L.timer });
+      case 'createRoom': persist(); return ctx.createRoom({ name: myName(), avatar: L.avatar, chars: L.chars, goal: L.goal, level: L.level });
       case 'copy': navigator.clipboard?.writeText(L.roomCode); L.copied = true; setTimeout(() => { L.copied = false; render(); }, 1500); break;
       case 'addAI': ctx.addAI(); return;
       case 'removeSeat': ctx.removeSeat(+v); return;

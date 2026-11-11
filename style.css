@@ -998,3 +998,13 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
 .sh-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
 .sh-actions .btn { flex: 1 1 42%; min-width: 0; white-space: normal; overflow-wrap: anywhere; justify-content: center; }
 .cards-pick > div { min-width: 0; }
+
+/* Shared chronicle character boundaries and personal event highlights. */
+.log li.lk-call { margin-top: 14px; padding-top: 10px; border-top: 2px solid var(--gold-lo); font-weight: 700; color: var(--gold-hi); }
+.log li.log-mine { color: #9ee4e1; background: rgba(74, 190, 183, .10); border-left: 3px solid #65c8c2; padding-left: 8px; }
+.thinking { display: inline-block; flex-shrink: 0; margin-left: 4px; font-size: 14px; animation: dot 1s infinite; }
+
+@media (max-width: 760px) {
+  .topbar .icon-btn { min-width: 32px; width: 32px; padding: 0; }
+  .tb-right { gap: 3px; }
+}

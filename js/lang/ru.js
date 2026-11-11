@@ -197,6 +197,7 @@ export default {
   'ui.waitingDraft': '{name} выбирает персонажа…',
   'ui.pickChar': 'Выберите персонажа',
   'ui.pickSecond': 'Выберите второго персонажа',
+  'ui.roundInfo': 'Информация о раунде',
   'ui.previousChoices': 'Предыдущие игроки выбирали из следующих персонажей',
   'ui.faceUp': 'Отложены в открытую',
   'ui.faceDown': 'Скрыто: {n}',

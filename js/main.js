@@ -1,5 +1,5 @@
 // App controller: owns the authoritative state (solo/host), the AI driver, event playback,
-// persistence, turn timer, emotes, stats and the host/peer plumbing. UI, lobby and scene are views.
+// persistence, emotes, stats and the host/peer plumbing. UI, lobby and scene are views.
 
 import { createScene } from './scene.js';
 import { createUI, EMOTES } from './ui.js';
@@ -25,7 +25,7 @@ const SILENT_MS = 12000;
 const G = {
   mode: null, S: null, view: null, me: 0, lastEv: 0, queue: [], playing: false, aiTimer: null,
   speed: store.get('c3d.speed') || 'normal', cfg: null, room: null, link: null,
-  deadline: null, auto: null, recorded: null,
+  deadline: null, recorded: null,
 };
 const thumbs = Object.fromEntries(DIST_IDS.map(id => [id, new URL(`../assets/districts/${id}.webp`, import.meta.url).href]));
 setLang(getLang());
@@ -115,13 +115,12 @@ async function pump() {
   scheduleAI();
 }
 
-const isBot = (S, pid) => S.players[pid].ai || G.auto === pid;
+const isBot = (S, pid) => S.players[pid].ai;
 function scheduleAI() {
   clearTimeout(G.aiTimer);
   const S = G.S;
   if (!S || (G.mode !== 'solo' && G.mode !== 'host') || S.phase === 'over' || G.playing || G.queue.length) return;
   const pid = currentActor(S);
-  if (G.auto !== null && G.auto !== pid) G.auto = null;
   if (pid === null || !isBot(S, pid)) return;
   const move = () => {
     if (G.S !== S) return;
@@ -151,23 +150,8 @@ function hint() {
   try { return aiAction(v, G.me); } catch { return null; }
 }
 
-// ── turn timer (host option): an idle human's decision is made by the advisor ──
-function updateDeadline() {
-  const sec = G.mode === 'host' ? G.room?.timer : 0;
-  const S = G.S, pid = S && S.phase !== 'over' ? currentActor(S) : null;
-  if (!sec || pid === null || isBot(S, pid)) { G.deadline = null; return; }
-  G.deadline = { pid, at: Date.now() + sec * 1000 };
-}
-setInterval(() => {
-  const d = G.deadline;
-  if (G.mode !== 'host' || !d || Date.now() < d.at || !G.S) return;
-  G.deadline = null;
-  G.auto = d.pid;
-  const name = G.S.players[d.pid].name;
-  ui.toast(t('ui.timeout', { name }), 'danger');
-  for (const s of G.room.seats) if (s.conn) net.send(s.conn, { t: 'note', k: 'timeout', name });
-  scheduleAI();
-}, 500);
+// Human decisions have no deadline, including while a seat is disconnected.
+function updateDeadline() { G.deadline = null; }
 
 // ── emotes ─────────────────────────────────────────────────────────────────
 function sendEmote(e) {
@@ -210,7 +194,7 @@ function recordResult(v) {
 // ── mode switching ─────────────────────────────────────────────────────────
 function enterGame(mode) {
   clearTimeout(G.aiTimer);
-  G.mode = mode; G.view = null; G.lastEv = 0; G.queue = []; G.auto = null; G.deadline = null; G.recorded = null;
+  G.mode = mode; G.view = null; G.lastEv = 0; G.queue = []; G.deadline = null; G.recorded = null;
   lobby.hide();
   ui.resetLog();
   ui.show();
@@ -231,7 +215,7 @@ function leave() {
 }
 
 function again() {
-  if (G.mode === 'host') G.cfg.players = G.room.seats.map(s => ({ name: s.name, avatar: s.avatar, ai: !s.host && !s.conn }));
+  if (G.mode === 'host') G.cfg.players = G.room.seats.map(s => ({ name: s.name, avatar: s.avatar, ai: !!s.ai }));
   const mode = G.mode;
   enterGame(mode);
   setState(createGame({ ...G.cfg, seed: undefined }));
@@ -292,7 +276,7 @@ const hostHandlers = {
     if (m.t === 'hello') {
       if (m.v !== VERSION) return net.send(conn, { t: 'old' });
       const idx = R.seats.findIndex(s => s.token && s.token === m.token);
-      if (idx > 0) { // returning player reclaims their seat from the AI
+      if (idx > 0) { // returning player reclaims their human seat
         R.seats[idx].conn = conn;
         R.seats[idx].seen = Date.now();
         if (G.S) {
@@ -311,7 +295,6 @@ const hostHandlers = {
     const idx = R.seats.findIndex(s => s.conn === conn);
     if (idx < 1) return;
     if (m.t === 'act' && G.S) {
-      if (G.auto === idx) G.auto = null; // they're back at the keyboard
       const n = act(G.S, idx, m.a);
       if (n.error) return net.send(conn, { t: 'err', e: n.error });
       setState(n);
@@ -326,8 +309,7 @@ const hostHandlers = {
     R.seats[idx].conn = null;
     if (G.S) {
       G.S = structuredClone(G.S);
-      G.S.players[idx].ai = true;
-      ui.toast(t('ui.aiTook', { name: R.seats[idx].name }));
+      G.S.players[idx].ai = false;
       publish();
     } else { R.seats.splice(idx, 1); broadcastLobby(); }
   },
@@ -376,7 +358,7 @@ async function resumeHost(save) {
       G.room = { code: save.code, peer, seats: save.seats.map(s => ({ ...s, conn: null })), chars: save.cfg.chars, goal: save.cfg.goal, level: save.cfg.level, timer: save.timer };
       G.cfg = save.cfg; G.me = 0;
       const S = structuredClone(save.S);
-      S.players.forEach((p, i) => { if (i > 0 && !save.seats[i].ai) p.ai = true; }); // until they reconnect
+      S.players.forEach((p, i) => { p.ai = !!save.seats[i].ai; }); // wait for human reconnection
       enterGame('host');
       return setState(S);
     } catch (e) {

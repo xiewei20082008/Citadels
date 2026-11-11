@@ -239,6 +239,7 @@ const D = {
   'ui.waitingDraft': ['{name} is choosing a character…', '{name} 正在挑选角色…'],
   'ui.pickChar': ['Choose your character', '选择你的角色'],
   'ui.pickSecond': ['Choose your second character', '选择你的第二个角色'],
+  'ui.roundInfo': ['Round info', '回合信息'],
   'ui.previousChoices': ['Previous players have chosen among', '之前的玩家从以下角色中进行了选择'],
   'ui.faceUp': ['Set aside face up', '公开移除'],
   'ui.faceDown': ['{n} hidden', '{n} 张暗置'],

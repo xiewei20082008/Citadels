@@ -285,7 +285,7 @@ function applyCharacterEffects(s) {
 }
 
 export function threatTargets(s) {
-  return s.cfg.chars.filter(id => rankOf(id) !== 1 && rankOf(id) !== s.killed && rankOf(id) !== s.bewitched);
+  return s.cfg.chars.filter(id => id !== 21 && rankOf(id) !== 1 && rankOf(id) !== s.killed && rankOf(id) !== s.bewitched);
 }
 
 function advanceThreat(s) {
