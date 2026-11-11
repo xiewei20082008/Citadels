@@ -2,7 +2,7 @@
 // Acceptance coverage: spec/tax-collector-and-marshal/corner-cases.md.
 // Future-only characters/cards are deliberately outside this suite's scope.
 import assert from 'node:assert/strict';
-import { physicalCards, createGame, act, actInPlace, viewFor, currentActor, rankOf, score, buildLimit, seizureCost, seizeError, VERSION } from '../js/engine.js';
+import { physicalCards, createGame, act, actInPlace, viewFor, currentActor, rankOf, score, buildLimit, destroyCost, seizureCost, seizeError, VERSION } from '../js/engine.js';
 import { aiAction, safeAction, marshalOptions, SEARCH } from '../js/ai.js';
 import { determinize, search } from '../js/search.js';
 import { CHAR, PRESETS, makeDeck } from '../js/data.js';
@@ -163,11 +163,63 @@ for (const reason of ['unsigned', 'duplicate']) {
   assert.equal(s.taxPool, 1); assert.equal(s.players[2].gold, 3); assert.equal(s.players[0].gold, 10);
 }
 
+// Rank-8 protections apply equally to Warlord destruction and Marshal seizure.
+for (const cid of [8, 20]) {
+  const setup = () => fixture(cid, { chars: cast.map(c => c === 20 ? cid : c) });
+  const action = (s, c) => cid === 20 ? seize(s, c) : { t: 'destroy', target: 1, uid: c.uid };
+  {
+    const s = setup(), card = give(s, 1, 'keep', 'city');
+    reject(s, 0, action(s, card));
+    if (cid === 20) {
+      const v = viewFor(s, 0);
+      assert.equal(seizeError(v, v.players[0], v.players[1], card), 'keep');
+      assert.deepEqual(marshalOptions(v, v.players[0]), []);
+    }
+  }
+  for (const killed of [false, true]) {
+    const s = setup(), card = give(s, 1, 'temple', 'city');
+    s.players[1].chars = [5];
+    if (killed) { s.killed = 5; move(s, 0, action(s, card)); }
+    else reject(s, 0, action(s, card));
+  }
+  for (const id of ['temple', 'church', 'manor']) {
+    const s = setup(), card = give(s, 1, id, 'city');
+    const wall = give(s, 1, 'great_wall', 'city');
+    const cost = cid === 20 ? card.cost + 1 : card.cost;
+    assert.equal(destroyCost(s.players[1], wall), wall.cost - 1);
+    assert.equal(seizureCost(s.players[1], wall), wall.cost);
+    s.players[0].gold = cost - 1;
+    reject(s, 0, action(s, card));
+    if (cid === 20) {
+      let v = viewFor(s, 0);
+      assert.deepEqual(marshalOptions(v, v.players[0]), []);
+      assert.equal(seizeError(v, v.players[0], v.players[1], card), 'poor');
+      s.players[0].gold = cost;
+      v = viewFor(s, 0);
+      assert.equal(marshalOptions(v, v.players[0]).length, 1);
+      assert.equal(seizureCost(v.players[1], card), cost);
+    } else s.players[0].gold = cost;
+    const gold = totalGold(s), n = move(s, 0, action(s, card));
+    assert.equal(n.players[0].gold, 0);
+    assert.equal(n.players[1].gold, cid === 20 ? cost : 0);
+    assert.equal(totalGold(n), gold - (cid === 20 ? 0 : cost));
+    assert.equal(n.ev.at(-1).cost, cost);
+    assert.equal(n.players[1].city.some(c => c.uid === wall.uid), true);
+  }
+}
+// The Marshal's own Great Wall does not increase payment to an opponent.
+{
+  const s = fixture(20), card = give(s, 1, 'manor', 'city');
+  give(s, 0, 'great_wall', 'city'); s.players[0].gold = 3;
+  const n = move(s, 0, seize(s, card));
+  assert.equal(n.players[0].gold, 0); assert.equal(n.players[1].gold, 3);
+}
+
 // M01-M18, O01-O08,O11: independent payment and transfer, metadata and stats.
-for (const id of ['temple', 'church', 'manor', 'keep', 'secret_vault']) {
+for (const id of ['temple', 'church', 'manor', 'secret_vault']) {
   const s = fixture(20), card = give(s, 1, id, 'city', { round: -3, attached: { marker: 'retained' } });
   s.players[0].gold = card.cost; s.players[1].gold = 4;
-  give(s, 0, 'factory', 'city'); give(s, 1, 'great_wall', 'city'); give(s, 1, 'poor_house', 'city');
+  give(s, 0, 'factory', 'city'); give(s, 1, 'poor_house', 'city');
   s.warrants = { pid: 2, targets: [20, 4, 19], signed: 20, revealed: false };
   const original = structuredClone(card), gold = totalGold(s), beforeScore = score(s, s.players[1]).total;
   const n = move(s, 0, { ...seize(s, card), cost: -999, exemption: true });
@@ -281,7 +333,7 @@ for (const killed of [false, true]) {
   give(s, 1, 'manor', 'city'); give(s, 0, 'monastery');
   const v = viewFor(s, 0), sampled = determinize(v, 0); conserve(sampled); assert.equal(sampled.taxPool, 6);
   const choices = marshalOptions(v, v.players[0]); assert.equal(choices.length, 1);
-  assert.equal(seizureCost(s.players[1].city[0]), 3); assert.equal(seizeError(v, v.players[0], v.players[1], v.players[1].city[0]), null);
+  assert.equal(seizureCost(s.players[1], s.players[1].city[0]), 3); assert.equal(seizeError(v, v.players[0], v.players[1], v.players[1].city[0]), null);
   const a = aiAction(v, 0, { lookahead: false }); assert.ok(['build', 'seize'].includes(a.t));
   const n = move(s, 0, a), next = aiAction(viewFor(n, 0), 0, { lookahead: false });
   assert.equal(next.t, 'end'); move(n, 0, safeAction(viewFor(n, 0), 0));

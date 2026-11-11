@@ -6,7 +6,7 @@ Scope: implementation risks and acceptance scenarios for [goal.md](goal.md), not
 
 Use the publisher's [2021 rulebook](https://coolplay.rs/wp-content/uploads/2024/03/Citadels_pravila-Eng.pdf), printed pages 4, 8, 12-15, and the [2016 deluxe rulebook](https://images.zmangames.com/filer_public/82/aa/82aac2d6-2a19-4143-9690-eb16b82bd9af/citadels_deluxe_rulebook.pdf), printed pages 13-14. The linked goal distinguishes published rules, inferred consequences, project timing, and edition-dependent district choices.
 
-All cases below are proposed tests. Future-only characters/districts do not need to be added to satisfy this feature. In particular, Keep and Great Wall expectations retain the project's existing Warlord-only text and must be reviewed if that text changes.
+All cases below are proposed tests. Future-only characters/districts do not need to be added to satisfy this feature. Keep and Great Wall expectations include [the rank-8 fix](../rank8-fix/goal.md).
 
 ## Tax assessment and collection
 
@@ -68,8 +68,8 @@ Current integration: `construct()` may defer `place()` through `s.interrupt`. `w
 | M11 | Living Bishop protects target | Reject; Abbot does not confer Bishop protection. |
 | M12 | Bishop assassinated | Bishop protection is absent. Other restrictions still apply. |
 | M13 | Future bewitched Bishop | Protect Witch's city instead of Bishop's original city. Do not require Witch support now. |
-| M14 | Keep at cost three | Under this project's retained Warlord-only wording, seizure is legal if otherwise eligible. Flag an edition-text update explicitly rather than inheriting Warlord's Keep ban. |
-| M15 | Great Wall in the source city | Under retained project wording, no seizure surcharge or ceiling change. Do not call `destroyCost()`. |
+| M14 | Keep at cost three | Reject seizure: Keep is protected against all rank-8 character abilities. |
+| M15 | Great Wall in the source city | Add one gold to seizure payment for other districts, leaving the building-cost ceiling unchanged. A three-cost district costs four gold to seize; reject if Marshal cannot afford that payment. Great Wall does not surcharge itself. Do not call `destroyCost()`. |
 | M16 | Future Artist: printed two beautified to three; printed three beautified to four | First remains eligible at price three; second is ineligible. Preserve beautification after transfer. |
 | M17 | Second seizure, repeated request, or old-round request | Reject; neither income nor another construction restores the ability. |
 | M18 | Tax Collector is configured and Marshal has spare gold | Seizure adds nothing to the tax pool. An ordinary build on that turn still pays its own tax. |

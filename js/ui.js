@@ -119,7 +119,7 @@ export function createUI(ctx) {
       case 'queen': out.push(t('fy.queen')); break;
       case 'tax_collector': out.push(t('ui.taxPool', { n: v.taxPool })); break;
       case 'marshal': {
-        const costs = rivals.flatMap(p => p.city.filter(c => !seizeError(v, me, p, c)).map(seizureCost));
+        const costs = rivals.flatMap(p => p.city.filter(c => !seizeError(v, me, p, c)).map(c => seizureCost(p, c)));
         if (costs.length) out.push(t('fy.target', { n: Math.min(...costs) }));
         break;
       }
@@ -479,7 +479,7 @@ export function createUI(ctx) {
       if (T.max === 0) return t('ui.noBuild');
       if (card.id === 'monument' && me.city.length >= 5) return t('ui.monumentLimit');
       if (countsTowardLimit(T.charId, card) && T.built >= T.max) return t('ui.limit');
-      if (!canPlace(me, card)) return t('ui.dup');
+      if (!canPlace(me, card, T.charId)) return t('ui.dup');
       return t('ui.tooPoor');
     }
     return 'ok';
@@ -655,7 +655,7 @@ export function createUI(ctx) {
       const sh = shielded(view, o);
       for (const card of o.city) {
         if (marshal && o.id === me.id) continue;
-        const cost = marshal ? seizureCost(card) : destroyCost(o, card);
+        const cost = marshal ? seizureCost(o, card) : destroyCost(o, card);
         const why = marshal ? seizeError(view, me, o, card) : null;
         out.push({ o, card, cost, sh, why, ok: marshal ? !why : !sh && card.id !== 'keep' && cost <= me.gold });
       }
@@ -797,7 +797,7 @@ export function createUI(ctx) {
         <button class="btn primary" data-a="graveYes" ${me.gold >= 1 ? '' : 'disabled'}>${svg('gold')}${t('ui.graveYes')}</button></div>`, { closable: false });
     } else if (s === 'keep' && pend) {
       html = sheetFrame(t('ui.keepTitle', { n: pend.n }),
-        `<div class="cards-big">${sortHand(pend.cards).map(c => cardHTML(c, { cls: 'big' + (canPlace(me, c) ? '' : ' dupwarn'), costShown: buildCost(me, c), attrs: 'data-a="keep"' })).join('')}</div>
+        `<div class="cards-big">${sortHand(pend.cards).map(c => cardHTML(c, { cls: 'big' + (canPlace(me, c, T.charId) ? '' : ' dupwarn'), costShown: buildCost(me, c), attrs: 'data-a="keep"' })).join('')}</div>
         <p class="note">${t('ui.keepHint')}</p>`, { closable: false, foot: hintFoot });
       wide = true;
     } else if (s === 'kill' || s === 'rob') {

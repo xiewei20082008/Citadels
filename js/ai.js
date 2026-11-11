@@ -46,8 +46,8 @@ function threat(v, p) {
 }
 
 // How much is this card worth to keep in hand?
-function cardValue(me, card) {
-  if (!canPlace(me, card)) return -5;
+function cardValue(me, card, charId = null) {
+  if (!canPlace(me, card, charId)) return -5;
   const cost = buildCost(me, card);
   let v = cost * 0.9;
   if (card.color === 'purple') v += 1;
@@ -56,7 +56,7 @@ function cardValue(me, card) {
   if (cost > reach) v -= (cost - reach) * 1.2;
   return v;
 }
-const buildable = p => p.hand.filter(c => !c.hidden && canPlace(p, c));
+const buildable = (p, charId = null) => p.hand.filter(c => !c.hidden && canPlace(p, c, charId));
 
 // Hypergeometric match distribution: opponents hold samples of the unseen pool.
 // Apply resource caps to each outcome, rather than capping the average matches.
@@ -214,7 +214,7 @@ function bestBuild(v, me) {
   const utility = a => {
     const card = me.hand.find(c => c.uid === a.uid), plan = constructionPlan(v, me, card, a);
     const remaining = me.gold - plan.goldDue;
-    const after = { ...me, city: [...me.city.filter(c => c.uid !== plan.sacrifice?.uid), card],
+    const after = { ...me, city: [...me.city.filter(c => c.uid !== plan.sacrifice?.uid), { ...card, round: v.round }],
       gold: remaining - taxDue(v, remaining, v.turn.charId), hand: me.hand.filter(c => c.uid !== card.uid && !plan.pay.includes(c.uid)) };
     const value = score(v, after).total - score(v, me).total;
     let u = value + (v.firstComplete === null ? districtValue(v, me, card) : 0) - plan.goldDue * 0.25 - plan.pay.length * 0.45;
@@ -266,13 +266,15 @@ function warlordMove(v, me) {
   for (const o of v.players) {
     if (o.id === me.id || shielded(v, o)) continue;
     const lead = threat(v, o) - mine;
-    const colors = new Set(o.city.filter(d => d.id !== 'haunted_city' && d.id !== 'school_of_magic').map(d => d.color));
     for (const d of o.city) {
       const cost = destroyCost(o, d);
       if (d.id === 'keep' || cost > me.gold) continue;
-      const breaksColours = colors.size === 5 && o.city.filter(x => x.color === d.color).length === 1 ? 3 : 0;
+      const after = { ...o, city: o.city.filter(c => c.uid !== d.uid) };
+      // Include Museum attachments and every scoring interaction, including
+      // a bonus the victim would gain (such as Ivory Tower) after removal.
+      const lostPoints = score(v, o).total - score(v, after).total;
       const nearEnd = completionCount(o) >= v.cfg.goal - 1 ? 3.5 : 0;
-      const damage = (d.cost + breaksColours) * (1 + Math.max(0, lead) / 10) + nearEnd + (lead < -6 ? -3 : 0);
+      const damage = lostPoints * (1 + Math.max(0, lead) / 10) + nearEnd + (lead < -6 ? -3 : 0);
       const value = damage - cost * 0.85 - (me.gold - cost < 2 ? 0.8 : 0);
       if (value > top) { top = value; pick = { t: 'destroy', target: o.id, uid: d.uid }; }
     }
@@ -284,7 +286,7 @@ function warlordMove(v, me) {
 export function marshalOptions(v, me) {
   const before = score(v, me).total;
   return v.players.filter(p => p.id !== me.id).flatMap(target => target.city.filter(card => !seizeError(v, me, target, card)).map(card => {
-    const cost = seizureCost(card);
+    const cost = seizureCost(target, card);
     const after = { ...me, city: [...me.city, card], gold: me.gold - cost };
     const other = { ...target, city: target.city.filter(c => c.uid !== card.uid), gold: target.gold + cost };
     const completion = v.firstComplete === null && completionCount(after) >= v.cfg.goal;
@@ -330,6 +332,7 @@ function marshalMove(v, me, lookahead) {
 
 export function aiAction(v, pid, { lookahead = true } = {}) {
   const me = v.players[pid];
+  const handValue = card => cardValue(me, card, v.turn?.charId);
 
   if (v.interrupt?.k === 'theater') return theaterChoice(v, me, lookahead);
   if (v.interrupt?.k === 'emperorAdvisor') return emperorChoice(v, pid, lookahead);
@@ -356,20 +359,31 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
   const opps = v.players.filter(p => p.id !== pid);
 
   if (P?.k === 'keep') {
-    const sorted = [...P.cards].sort((a, b) => cardValue(me, b) - cardValue(me, a));
+    const sorted = [...P.cards].sort((a, b) => handValue(b) - handValue(a));
     return { t: 'keep', uids: sorted.slice(0, P.n).map(c => c.uid) };
   }
   if (P?.k === 'wizard') {
     const options = P.cards.flatMap(c => constructionOptions(v, me, c, true));
     const utility = a => {
       const card = P.cards.find(c => c.uid === a.uid), plan = constructionPlan(v, me, card, a, true);
-      return card.cost - (plan.sacrifice?.cost || 0) + districtValue(v, me, card) - plan.goldDue * 0.3 - plan.pay.length * 0.5;
+      const gold = me.gold - plan.goldDue;
+      const after = { ...me, city: [...me.city.filter(c => c.uid !== plan.sacrifice?.uid), { ...card, round: v.round }],
+        hand: me.hand.filter(c => !plan.pay.includes(c.uid)), gold: gold - taxDue(v, gold, T.charId) };
+      const completes = v.firstComplete === null && completionCount(after) >= v.cfg.goal;
+      const next = { ...v, firstComplete: completes ? me.id : v.firstComplete };
+      if (completes && v.players.some(p => p.id !== me.id && score(next, p).total > score(next, after).total)) return -100;
+      let value = score(next, after).total - score(v, me).total + districtValue(v, me, card) - plan.goldDue * 0.3 - plan.pay.length * 0.5;
+      if (plan.sacrifice) value -= districtValue(v, me, plan.sacrifice);
+      const w = v.warrants;
+      if (plan.paid && !T.paidBuild && w?.pid !== me.id && w?.targets.includes(T.charId) && !has(v.players[w.pid], card.id))
+        value -= (w.signed === null ? 1 / 3 : Number(w.signed === T.charId)) * (Math.max(0, value) + 2);
+      return value;
     };
     const build = best(options, utility);
-    return build && utility(build) >= 2 ? build : { t: 'wizTake', uid: best(P.cards, c => cardValue(me, c)).uid, build: false };
+    return build && utility(build) >= 2 ? build : { t: 'wizTake', uid: best(P.cards, handValue).uid, build: false };
   }
   if (P?.k === 'seerGive') {
-    const sorted = [...me.hand].sort((a, b) => cardValue(me, a) - cardValue(me, b));
+    const sorted = [...me.hand].sort((a, b) => handValue(a) - handValue(b));
     return { t: 'seerGive', uids: sorted.slice(0, P.targets.length).map(c => c.uid) };
   }
 
@@ -396,11 +410,11 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
       if (ranks.length) return { t: 'rob', rank: bestTarget(v, me, ranks, 'rob') };
     }
     if (key === 'magician') {
-      const myGood = buildable(me).filter(c => cardValue(me, c) > 1.5).length;
+      const myGood = buildable(me, T.charId).filter(c => handValue(c) > 1.5).length;
       const mine = threat(v, me);
       const target = best(opps, p => p.handCount * 1.2 + Math.max(0, threat(v, p) - mine) * 0.08);
       if (target && target.handCount >= me.hand.length + 2 - (myGood === 0 ? 1 : 0)) return { t: 'swap', target: target.id };
-      const junk = me.hand.filter(c => cardValue(me, c) < 1.5);
+      const junk = me.hand.filter(c => handValue(c) < 1.5);
       if (junk.length && v.deckCount) return { t: 'redraw', uids: junk.map(c => c.uid) };
     }
     if (key === 'wizard') {
@@ -410,13 +424,13 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
     if (key === 'seer' && opps.some(p => p.handCount)) return { t: 'seer' };
     if (key === 'scholar' && v.deckCount) return { t: 'scholar' };
     if (key === 'navigator') {
-      const good = buildable(me).length;
+      const good = buildable(me, T.charId).length;
       return { t: 'nav', choice: (good >= 2 || !v.deckCount) ? 'gold' : 'cards' };
     }
   }
 
   if (!T.income) {
-    const good = buildable(me).filter(c => cardValue(me, c) > 0.5);
+    const good = buildable(me, T.charId).filter(c => handValue(c) > 0.5);
     const cheapest = Math.min(...good.map(c => buildCost(me, c)), 99);
     const needed = v.cfg.goal - completionCount(me);
     const willBuild = T.max > 0;
@@ -427,10 +441,10 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
     return { t: draw && v.deckCount ? 'draw' : 'gold' };
   }
 
-  if (has(me, 'smithy') && !T.used.smithy && me.gold >= 4 && buildable(me).length <= 1 && v.deckCount) return { t: 'smithy' };
+  if (has(me, 'smithy') && !T.used.smithy && me.gold >= 4 && buildable(me, T.charId).length <= 1 && v.deckCount) return { t: 'smithy' };
   if (has(me, 'laboratory') && !T.used.lab && me.hand.length) {
-    const j = worst(me.hand, c => cardValue(me, c));
-    if (cardValue(me, j) < 1) return { t: 'lab', uid: j.uid };
+    const j = worst(me.hand, handValue);
+    if (handValue(j) < 1) return { t: 'lab', uid: j.uid };
   }
 
   if (T.charId === 20 && !T.used.ability) {
@@ -446,14 +460,21 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
   }
   for (const armory of me.city.filter(c => c.id === 'armory')) {
     const targets = opps.flatMap(target => target.city.filter(card => !armoryError(v, me, armory, target, card)).map(card => ({ target, card })));
-    const pick = best(targets, x => x.card.cost + (x.card.stored || []).length + (completionCount(x.target) >= v.cfg.goal - 1 ? 3 : 0));
-    if (pick && pick.card.cost + (pick.card.stored || []).length >= 4)
+    const ownAfter = { ...me, city: me.city.filter(c => c.uid !== armory.uid) };
+    const ownLoss = score(v, me).total - score(v, ownAfter).total;
+    const utility = ({ target, card }) => {
+      const after = { ...target, city: target.city.filter(c => c.uid !== card.uid) };
+      const loss = score(v, target).total - score(v, after).total;
+      return loss - ownLoss + (completionCount(target) >= v.cfg.goal - 1 ? 3 : 0);
+    };
+    const pick = best(targets, utility);
+    if (pick && utility(pick) > 0)
       return { t: 'armory', armory: armory.uid, target: pick.target.id, uid: pick.card.uid };
   }
   const museum = me.city.find(c => c.id === 'museum' && !T.used['museum:' + c.uid]);
   if (museum && me.hand.length) {
-    const card = worst(me.hand, c => cardValue(me, c));
-    if (v.firstComplete !== null || cardValue(me, card) < 2 || (has(me, 'park') && me.hand.length === 1))
+    const card = worst(me.hand, handValue);
+    if (v.firstComplete !== null || handValue(card) < 2 || (has(me, 'park') && me.hand.length === 1))
       return { t: 'museum', museum: museum.uid, uid: card.uid };
   }
   return { t: 'end' };
@@ -579,7 +600,8 @@ function warrantResponse(v, me) {
   let take = canConfiscate(v);
   if (take) {
     const card = { ...i.card, round: v.round };
-    const after = { ...me, city: [...me.city, card], gold: me.gold + (i.builder === me.id ? i.goldPaid : 0) };
+    const refunded = me.gold + (i.builder === me.id ? i.goldPaid : 0);
+    const after = { ...me, city: [...me.city, card], gold: refunded - taxDue(v, refunded, 17) };
     const completion = v.firstComplete === null && completionCount(after) >= v.cfg.goal;
     const next = { ...v, firstComplete: completion ? me.id : v.firstComplete };
     // Taking a second unique district can forfeit Ivory Tower's five points.

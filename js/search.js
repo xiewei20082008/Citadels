@@ -38,9 +38,19 @@ export function determinize(v, me) {
   const known = new Set();
   const mark = cards => cards.forEach(c => !c.hidden && known.add(c.uid));
   s.players.forEach(p => { mark(p.city); p.city.forEach(c => mark(c.stored || [])); if (p.id === me) mark(p.hand); });
-  if (s.turn?.pending?.cards) mark(s.turn.pending.cards);
-  if (s.turn?.spyPeek?.cards) mark(s.turn.spyPeek.cards);
-  if (s.interrupt?.card) known.add(s.interrupt.card.uid);
+  if (s.interrupt?.card) { mark([s.interrupt.card]); mark(s.interrupt.card.stored || []); }
+  const pending = s.turn?.pending;
+  if (pending?.k === 'keep' && pending.cards) mark(pending.cards);
+  // Inspections are knowledge copies. Never place a remembered card back in
+  // an opponent's hand if its current physical location is already known.
+  const inspected = new Map();
+  for (const peek of [pending?.k === 'wizard' && pending.cards ? pending : null, s.turn?.spyPeek]) {
+    if (!peek || peek.target === me) continue;
+    const target = s.players[peek.target];
+    const cards = peek.cards.filter(c => !known.has(c.uid)).slice(0, target.handCount);
+    inspected.set(target.id, cards);
+    mark(cards);
+  }
   const pool = shuffle(makeDeck(v.cfg.uniqueDistricts).filter(c => !known.has(c.uid)));
   for (const p of s.players) for (const museum of p.city) if (museum.stored) {
     museum.stored = museum.stored.map(c => c.hidden ? { ...pool.shift(), knownTo: [p.id] } : { ...c, knownTo: [p.id, me] });
@@ -48,9 +58,14 @@ export function determinize(v, me) {
   for (const p of s.players) if (p.id !== me) {
     // A Wizard peek is a copy of the target's hand, not a separate card zone.
     // Keep those known cards in that hand so wizTake remains playable.
-    const seen = s.turn?.pending?.k === 'wizard' && s.turn.pending.target === p.id
-      ? s.turn.pending.cards || [] : s.turn?.spyPeek?.target === p.id ? s.turn.spyPeek.cards : [];
+    const seen = inspected.get(p.id) || [];
     p.hand = [...structuredClone(seen), ...pool.splice(0, Math.max(0, p.handCount - seen.length))];
+  }
+  if (pending?.k === 'keep' && !pending.cards) {
+    pending.cards = pool.splice(0, pending.count);
+    delete pending.count;
+  } else if (pending?.k === 'wizard') {
+    pending.cards = structuredClone(s.players[pending.target].hand);
   }
   s.deck = pool.slice(0, Math.max(0, v.deckCount));
 

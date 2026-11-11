@@ -45,22 +45,24 @@ export function colorCount(p, color) {
 export function buildCost(p, card) {
   return card.color === 'purple' && card.id !== 'factory' && has(p, 'factory') ? Math.max(0, card.cost - 1) : card.cost;
 }
-export function canPlace(p, card) {
-  return !has(p, card.id) || has(p, 'quarry');
+export function canPlace(p, card, charId = null) {
+  return charId === 11 || !has(p, card.id) || has(p, 'quarry');
 }
+const greatWallSurcharge = (target, card) => has(target, 'great_wall') && card.id !== 'great_wall' ? 1 : 0;
 export function destroyCost(target, card) {
-  return Math.max(0, card.cost - 1) + (has(target, 'great_wall') && card.id !== 'great_wall' ? 1 : 0);
+  return Math.max(0, card.cost - 1) + greatWallSurcharge(target, card);
 }
 // Construction tax is paid from the stash left AFTER payment, never borrowed.
 export const taxDue = (s, gold, charId) => s.cfg.chars.includes(19) && charId !== 19 && gold > 0 ? 1 : 0;
-// Separate from construction discounts and Warlord destruction modifiers.
-export const seizureCost = card => card.cost;
+// Great Wall increases payment, not the building cost used for Marshal's ceiling.
+export const seizureCost = (target, card) => card.cost + greatWallSurcharge(target, card);
 export function seizeError(s, marshal, target, card) {
   if (!target || target.id === marshal.id || !card || !target.city.some(c => c.uid === card.uid)) return 'bad target';
-  return shielded(s, target) || (has(marshal, card.id) ? 'duplicate' : null) ||
-    (seizureCost(card) > 3 ? 'expensive' : null) || (seizureCost(card) > marshal.gold ? 'poor' : null);
+  return shielded(s, target) || (card.id === 'keep' ? 'keep' : null) ||
+    (has(marshal, card.id) ? 'duplicate' : null) ||
+    (card.cost > 3 ? 'expensive' : null) || (seizureCost(target, card) > marshal.gold ? 'poor' : null);
 }
-// Can the current Warlord touch this player's city at all?
+// Can a rank-8 character target this player's city at all?
 export function shielded(s, target) {
   if (completionCount(target) >= s.cfg.goal) return 'complete';
   if (target.chars.includes(5) && s.killed !== 5) return 'bishop'; // the Bishop only, not the Abbot
@@ -92,7 +94,9 @@ export function constructionPlan(s, p, card, a = {}, wizard = false) {
       return { error: 'bad sacrifice' };
   }
   const after = sacrifice ? { ...p, city: p.city.filter(c => c.uid !== sacrifice.uid) } : p;
-  if (!wizard && !canPlace(after, card)) return { error: 'duplicate' };
+  // Wizard's duplicate permission lasts the whole character turn, including
+  // ordinary construction from hand. It never applies to confiscation/seizure.
+  if (!canPlace(after, card, T.charId)) return { error: 'duplicate' };
   const cost = buildCost(after, card);
   if (pay.length && card.id !== 'thieves_den') return { error: 'only Thieves\' Den takes cards' };
   if (pay.includes(card.uid) || !pay.every(u => p.hand.some(c => c.uid === u))) return { error: 'bad payment' };
@@ -636,7 +640,7 @@ function actInner(state, pid, a, inPlace = false) {
       const target = Number.isInteger(a.target) && s.players[a.target];
       const card = target && target.city.find(c => c.uid === a.uid);
       if ((err = seizeError(s, p, target, card))) return fail(err);
-      const cost = seizureCost(card);
+      const cost = seizureCost(target, card);
       T.used.ability = true;
       p.gold -= cost; target.gold += cost;
       target.city.splice(target.city.findIndex(c => c.uid === card.uid), 1);
@@ -944,7 +948,16 @@ export function viewFor(s, pid) {
     if (s.phase !== 'draft' || s.draft.order[s.draft.idx] !== pid) v.draft.avail = [];
     else v.draft.options = draftOptions(s);
   }
-  if (v.turn?.pending && v.turn.pid !== pid) v.turn.pending = { k: v.turn.pending.k };
+  if (v.turn?.pending && v.turn.pid !== pid) {
+    const pending = v.turn.pending;
+    // Keep public decision context so sampled worlds can resume the choice,
+    // without exposing card identities or treating Wizard's snapshot as a zone.
+    v.turn.pending = pending.k === 'keep'
+      ? { k: pending.k, count: pending.cards.length, n: pending.n, shuffle: !!pending.shuffle }
+      : pending.k === 'wizard' ? { k: pending.k, target: pending.target }
+      : pending.k === 'seerGive' ? { k: pending.k, targets: [...pending.targets] }
+      : { k: pending.k };
+  }
   if (v.turn && v.turn.pid !== pid) delete v.turn.spyPeek;
   if (v.warrants && v.warrants.pid !== pid && !v.warrants.revealed && !over) v.warrants.signed = null;
   // Even paid-off/finished markers retain their private original identity.
