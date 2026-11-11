@@ -5,7 +5,7 @@
 import { CHAR, COLORS, makeDeck } from './data.js';
 
 const MAX_EV = 120;
-export const VERSION = 6; // Threat decisions and deferred character effects
+export const VERSION = 7; // Emperor assignment and round-end advisor continuation
 const MAX_ROUNDS = 40; // ponytail: hard stop for degenerate games (empty deck + empty hands)
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -72,6 +72,7 @@ export function countsTowardLimit(charId, card) {
 export function createGame(cfg) {
   const n = cfg.players.length;
   if (n < 2 || n > 7) throw new Error('2–7 players');
+  if (n === 2 && cfg.chars.includes(22)) throw new Error('Emperor requires at least 3 players');
   const ranks = cfg.chars.map(rankOf);
   if (new Set(ranks).size !== ranks.length) throw new Error('one character per rank');
   if (!ranks.includes(4)) throw new Error('rank 4 (crown) required');
@@ -143,6 +144,11 @@ function nextCall(s) {
     const holder = holderOf(s, s.call);
     if (!holder) { emit(s, 'call', { rank: s.call, charId, pid: null }); continue; }
     const cid = holder.chars.find(c => rankOf(c) === s.call);
+    if (s.killed === 4 && s.call === 4) {
+      // The advisor/heir is revealed only after every ordinary character call.
+      emit(s, 'call', { rank: 4, charId: cid, pid: null });
+      continue;
+    }
     s.revealed.push(cid);
     (holder.played ||= []).push(cid); // public once called
     holder.lastRank = Math.max(holder.lastRank, s.call);
@@ -203,7 +209,7 @@ function applyCharacterEffects(s) {
   }
   if (charId === 9) {
     const n = s.players.length, king = holderOf(s, 4);
-    if (king && king.id !== p.id && [1, n - 1].includes(Math.abs(king.id - p.id))) gain(s, p, 3, 'queen');
+    if (s.killed !== 4 && king && king.id !== p.id && [1, n - 1].includes(Math.abs(king.id - p.id))) gain(s, p, 3, 'queen');
   }
 }
 
@@ -283,14 +289,37 @@ export function canConfiscate(s) {
     w.signed === s.turn?.charId && !has(s.players[i.pid], i.card.id));
 }
 
-function endRound(s) {
-  s.turn = null;
-  if (s.killed === 4) { // an assassinated King still inherits the crown at round end
-    const heir = holderOf(s, 4);
-    if (heir) { s.crown = heir.id; emit(s, 'crown', { pid: heir.id, heir: true }); }
-  }
+export const emperorRecipients = (s, pid) => s.players.filter(p => p.id !== pid && p.id !== s.crown);
+function deferredQueen(s) {
+  const queen = holderOf(s, 9), noble = holderOf(s, 4), n = s.players.length;
+  if (s.killed === 4 && queen?.chars.includes(9) && s.revealed.includes(9) &&
+      noble && queen.id !== noble.id && [1, n - 1].includes(Math.abs(queen.id - noble.id))) gain(s, queen, 3, 'queen');
+}
+function finishRound(s) {
   if (s.firstComplete !== null || s.round >= MAX_ROUNDS) return finish(s);
   startRound(s);
+}
+function endRound(s) {
+  s.turn = null;
+  if (s.killed === 4) {
+    const heir = holderOf(s, 4);
+    if (heir) {
+      const cid = heir.chars.find(c => rankOf(c) === 4);
+      s.revealed.push(cid);
+      (heir.played ||= []).push(cid);
+      heir.lastRank = Math.max(heir.lastRank, 4);
+      bump(heir, 'slain');
+      emit(s, 'call', { rank: 4, charId: cid, pid: heir.id, killed: true });
+    }
+    if (heir?.chars.includes(22)) {
+      s.interrupt = { k: 'emperorAdvisor', pid: heir.id, charId: 22, round: s.round, id: s.evSeq + 1 };
+      emit(s, 'emperorAdvisor', { pid: heir.id });
+      return;
+    }
+    if (heir) { s.crown = heir.id; emit(s, 'crown', { pid: heir.id, heir: true }); }
+    deferredQueen(s);
+  }
+  finishRound(s);
 }
 
 // ── scoring ────────────────────────────────────────────────────────────────
@@ -357,6 +386,18 @@ function actInner(state, pid, a, inPlace = false) {
 
   if (s.interrupt) { // someone else's decision pauses the active character
     const I = s.interrupt;
+    if (I.k === 'emperorAdvisor') {
+      if (pid !== I.pid || a.t !== I.k || a.id !== I.id || a.round !== I.round ||
+          a.charId !== I.charId || s.round !== I.round || s.phase !== 'turns' || s.turn ||
+          !emperorRecipients(s, pid).some(q => q.id === a.target) || 'resource' in a)
+        return fail('invalid advisor response');
+      s.crown = a.target;
+      emit(s, 'crown', { pid: a.target, advisor: pid });
+      s.interrupt = null;
+      deferredQueen(s);
+      finishRound(s);
+      return s;
+    }
     if (I.k === 'threatResponse' || I.k === 'threatReveal') {
       if (I.pid !== pid || a.t !== I.k) return fail('waiting for threat response');
       if (a.id !== I.id || a.round !== I.round || a.charId !== I.charId ||
@@ -449,6 +490,27 @@ function actInner(state, pid, a, inPlace = false) {
   let err;
 
   switch (a.t) {
+    case 'emperorCrown': {
+      if ((err = ability(22))) return fail(err);
+      const target = emperorRecipients(s, pid).find(q => q.id === a.target);
+      if (!target || a.round !== s.round || a.charId !== cid) return fail('bad crown recipient');
+      const choices = [...(target.gold > 0 ? ['gold'] : []), ...(target.hand.length ? ['card'] : [])];
+      if (!(choices.length ? choices : ['none']).includes(a.resource)) return fail('bad tribute');
+      T.used.ability = true;
+      s.crown = target.id;
+      emit(s, 'crown', { pid: target.id });
+      if (a.resource === 'gold') {
+        target.gold--; p.gold++;
+        bump(p, 'stole'); bump(target, 'robbed');
+      } else if (a.resource === 'card') {
+        const index = Math.floor(rand(s) * target.hand.length);
+        p.hand.push(...target.hand.splice(index, 1));
+        bump(p, 'tributeCardsReceived'); bump(target, 'tributeCardsPaid');
+      }
+      // Never include the transferred card or random index in public events.
+      emit(s, 'emperorTribute', { from: target.id, to: pid, resource: a.resource });
+      return s;
+    }
     case 'threats': {
       if ((err = ability(21))) return fail(err);
       const targets = a.targets, legal = threatTargets(s);
@@ -703,6 +765,7 @@ function actInner(state, pid, a, inPlace = false) {
 
     case 'end':
       if ((err = needFree())) return fail(err);
+      if (cid === 22 && !T.used.ability) return fail('assign the crown first');
       if (!T.income) return fail('take income first');
       emit(s, 'end', { pid });
       s.turn = null;

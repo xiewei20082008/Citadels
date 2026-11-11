@@ -1,5 +1,15 @@
 // Português (Brasil). Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.emperor": "Imperador",
+  "a.emperor": "Ganhe 1 ouro por distrito nobre. Entregue obrigatoriamente a coroa a alguém que não seja você nem o dono atual; pegue 1 ouro ou uma carta aleatória da mão dele (nada se não houver nenhum). Se morrer, atribua a coroa no fim da rodada sem tributo. Mínimo 3 jogadores.",
+  "ui.emperorTitle": "Atribuir a coroa",
+  "ui.emperorAdvisor": "Conselheiro imperial: atribuir a coroa",
+  "ui.emperorPlayers": "O Imperador exige pelo menos 3 jogadores.",
+  "ui.emperor.gold": "Pegar 1 ouro",
+  "ui.emperor.card": "Pegar carta aleatória",
+  "ui.emperor.none": "Sem tributo",
+  "l.emperorTribute": "{name} recebe tributo de {target}: {resource}",
+
   "c.blackmailer": "Chantagista",
   "a.blackmailer": "Atribui duas ameaças: uma flor e um engodo. Após recolher recursos, cada ameaçado pode pagar metade do ouro (arredondada para baixo) para remover a ameaça sem a revelar. Se recusar, podes revelar a flor e levar todo o seu ouro.",
   "ui.threatTitle": "Atribuir ameaças",

@@ -104,7 +104,7 @@ function playOutRound(s) {
 // Position value: points banked, plus resources that turn into points soon.
 function standing(s, p) {
   const left = s.cfg.goal - p.city.length;
-  return score(s, p).total + p.gold * 0.5 + Math.min(p.hand.length, left) * 0.45 + (s.crown === p.id ? 0.6 : 0);
+  return score(s, p).total + p.gold * 0.5 + Math.min(p.hand.length, left) * 0.45 + (s.phase !== 'over' && s.firstComplete === null && s.round < 40 && s.crown === p.id ? 0.6 : 0);
 }
 function outcome(s, me) {
   const mine = standing(s, s.players[me]);
@@ -114,7 +114,7 @@ function outcome(s, me) {
 }
 
 // Pick the best of `actions` for player `me`. Budget is in rollouts (options × samples).
-export function search(v, me, actions, budget = 120) {
+export function search(v, me, actions, budget = 120, { actionBonus = null, stable = false } = {}) {
   if (actions.length <= 1) return actions[0];
   const samples = Math.max(4, Math.floor(budget / actions.length));
   const total = actions.map(() => 0);
@@ -123,11 +123,14 @@ export function search(v, me, actions, budget = 120) {
     actions.forEach((a, k) => {
       const s1 = act(world, me, a);
       if (s1.error) { total[k] -= 99; return; }
-      total[k] += outcome(playOutRound(s1), me);
+      const result = playOutRound(s1);
+      total[k] += outcome(result, me) + (actionBonus ? actionBonus(a, result) : 0);
     });
   }
   // Near-ties are a coin flip, not always the same pick: softmax over the mean outcome.
   const mean = total.map(t => t / samples), top = Math.max(...mean);
+  // Mandatory Emperor choices use the first best action (seat/resource order).
+  if (stable) return actions[mean.indexOf(top)];
   const w = mean.map(m => Math.exp((m - top) / SOFT));
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let k = 0; k < w.length; k++) if ((r -= w[k]) <= 0) return actions[k];

@@ -1,5 +1,15 @@
 // Deutsch (long compounds carry soft hyphens so they wrap on small cards). Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.emperor": "Kaiser",
+  "a.emperor": "Erhalte 1 Gold je adligem Gebäude. Gib die Krone einem anderen Spieler als dir und dem aktuellen Besitzer; nimm 1 Gold oder eine zufällige Handkarte von ihm (nichts, falls beides fehlt). Ermordet vergibst du die Krone am Rundenende ohne Tribut. Mindestens 3 Spieler.",
+  "ui.emperorTitle": "Krone vergeben",
+  "ui.emperorAdvisor": "Kaiserlicher Berater: Krone vergeben",
+  "ui.emperorPlayers": "Der Kaiser benötigt mindestens 3 Spieler.",
+  "ui.emperor.gold": "1 Gold nehmen",
+  "ui.emperor.card": "Zufällige Karte nehmen",
+  "ui.emperor.none": "Kein Tribut",
+  "l.emperorTribute": "{name} erhält Tribut von {target}: {resource}",
+
   "c.blackmailer": "Erpresser",
   "a.blackmailer": "Verteile zwei Drohungen: Blume und Köder. Nach dem Ressourcensammeln darf jeder Bedrohte die Hälfte seines Goldes (abgerundet) zahlen, um die Drohung verdeckt zu entfernen. Bei Ablehnung darfst du die Blume aufdecken und alles Gold nehmen.",
   "ui.threatTitle": "Drohungen verteilen",

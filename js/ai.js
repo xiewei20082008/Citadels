@@ -110,6 +110,7 @@ function turnValue(v, p, charId) {
     case 'thief': v0 += Math.max(0, ...opps.map(q => q.gold)) * 0.45; break;
     case 'spy': v0 += Math.max(0, ...spyOptions(v, p).map(o => o.utility)); break;
     case 'magician': v0 += handN <= 1 ? Math.max(0, ...opps.map(q => (q.handCount ?? q.hand.length))) * 0.7 : 0.8; break;
+    case 'emperor': v0 += 0.8 - (v.crown === p.id ? 0.6 : 0); break;
     case 'king': v0 += v.crown !== p.id ? K.kingCrown : K.kingCrown / 2; break;
     case 'patrician': v0 += colorCount(p, 'yellow') * 0.9 + (v.crown !== p.id ? 1 : 0.4); break;
     case 'bishop': v0 += p.city.length >= goal - 3 ? 2.5 : 0.6; break;
@@ -198,7 +199,7 @@ function draftUtility(v, me, c) {
   const leading = threat(v, me) >= Math.max(...opps.map(q => threat(v, q)));
   // danger: juicy characters attract the Assassin and Thief if they're still out there
   const killersOut = v.cfg.chars.some(x => rankOf(x) <= 2 && !v.draft.faceUp.includes(x) && !me.chars.includes(x));
-  if (killersOut && ['merchant', 'king', 'architect', 'trader', 'patrician', 'tax_collector'].includes(key)) u -= (leading ? 1.1 : 0.6) * K.danger;
+  if (killersOut && ['merchant', 'king', 'emperor', 'architect', 'trader', 'patrician', 'tax_collector'].includes(key)) u -= (leading ? 1.1 : 0.6) * K.danger;
   if (rivalNear && (key === 'assassin' || key === 'warlord')) u += 1.6;
   if (iNear && key === 'bishop') u += leading ? 2.2 : 1;
   if (iNear && key === 'architect' && me.gold >= 4) u += 1.2;
@@ -325,6 +326,7 @@ function marshalMove(v, me, lookahead) {
 export function aiAction(v, pid, { lookahead = true } = {}) {
   const me = v.players[pid];
 
+  if (v.interrupt?.k === 'emperorAdvisor') return emperorChoice(v, pid, lookahead);
   if (v.interrupt) { // Graveyard: buy the ruin back?
     if (v.interrupt.k === 'threatResponse' || v.interrupt.k === 'threatReveal') return threatDecision(v, me, lookahead);
     if (v.interrupt.k === 'warrant') return warrantResponse(v, me);
@@ -365,6 +367,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
 
   if (!T.used.ability) {
     const key = CHAR[T.charId].key;
+    if (key === 'emperor') return emperorChoice(v, pid, lookahead);
     if (key === 'tax_collector' && v.taxPool > 0) return { t: 'collectTax', round: v.round, charId: T.charId };
     if (key === 'spy') return best(spyOptions(v, me), o => o.utility).action;
     if (key === 'magistrate') return assignWarrants(v, me);
@@ -433,6 +436,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
 
 // Fallback when an AI choice turns out illegal: always make progress.
 export function safeAction(v, pid) {
+  if (v.interrupt?.k === 'emperorAdvisor') return emperorChoice(v, pid);
   if (v.interrupt?.k === 'threatResponse') return threatReply(v, { bribe: true });
   if (v.interrupt?.k === 'threatReveal') return threatReply(v, { reveal: false });
   if (v.interrupt?.k === 'warrant') return { t: 'warrantResponse', id: v.interrupt.id, round: v.interrupt.round, take: false };
@@ -442,6 +446,7 @@ export function safeAction(v, pid) {
   if (P?.k === 'keep') return { t: 'keep', uids: P.cards.slice(0, P.n).map(c => c.uid) };
   if (P?.k === 'wizard') return { t: 'wizTake', uid: P.cards[0].uid };
   if (P?.k === 'seerGive') return { t: 'seerGive', uids: me.hand.slice(0, P.targets.length).map(c => c.uid) };
+  if (v.turn.charId === 22 && !v.turn.used.ability && v.turn.threat !== 'gather') return emperorChoice(v, pid);
   return v.turn.income ? { t: 'end' } : { t: 'gold' };
 }
 
@@ -561,4 +566,39 @@ function warrantResponse(v, me) {
     }
   }
   return { t: 'warrantResponse', id: i.id, round: i.round, take };
+}
+
+// Public-information tribute and draft-position heuristic; stable ties ensure progress.
+function emperorChoice(v, pid, lookahead = false) {
+  const advisor = v.interrupt?.k === 'emperorAdvisor', me = v.players[pid];
+  const final = v.firstComplete !== null || v.round >= 40;
+  const actions = [];
+  const visible = new Set([...me.hand, ...v.players.flatMap(p => p.city)].map(c => c.uid));
+  const unseen = makeDeck().filter(c => !visible.has(c.uid));
+  const expectedCard = unseen.length ? unseen.reduce((sum, c) => sum + cardValue(me, c), 0) / unseen.length : 0;
+  let chosen, top = -Infinity;
+  for (const q of v.players) {
+    if (q.id === pid || q.id === v.crown) continue;
+    const count = q.handCount ?? q.hand.length;
+    const resources = advisor ? [null] : [...(q.gold > 0 ? ['gold'] : []), ...(count ? ['card'] : [])];
+    if (!resources.length) resources.push('none');
+    for (const resource of resources) {
+      let value = 0;
+      if (resource === 'gold') value = 1.1 + Number(me.hand.some(c => canPlace(me, c) && buildCost(me, c) === me.gold + 1)) * 0.6;
+      if (resource === 'card') value = Math.min(2, Math.max(0.4, expectedCard * 0.3)) + (has(me, 'map_room') ? 1 : 0);
+      if (!final) {
+        value -= Math.min(0.8, Math.max(0, threat(v, q) - threat(v, me)) / 100);
+        value -= ((pid - q.id + v.players.length) % v.players.length) * 0.08;
+      }
+      const action = advisor
+        ? { t: 'emperorAdvisor', id: v.interrupt.id, round: v.round, charId: 22, target: q.id }
+        : { t: 'emperorCrown', round: v.round, charId: 22, target: q.id, resource };
+      actions.push(action);
+      if (value > top) {
+        top = value;
+        chosen = action;
+      }
+    }
+  }
+  return lookahead && SEARCH.on && actions.length > 1 ? search(v, pid, actions, SEARCH.budget) : chosen;
 }

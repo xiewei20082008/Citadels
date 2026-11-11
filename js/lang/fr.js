@@ -1,5 +1,15 @@
 // Français. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.emperor": "Empereur",
+  "a.emperor": "Gagnez 1 or par quartier noble. Donnez obligatoirement la couronne à un joueur autre que vous et son détenteur actuel, puis prenez 1 or ou une carte au hasard de sa main (rien si les deux sont vides). Assassiné, attribuez la couronne en fin de manche sans tribut. Au moins 3 joueurs.",
+  "ui.emperorTitle": "Attribuer la couronne",
+  "ui.emperorAdvisor": "Conseiller impérial : attribuer la couronne",
+  "ui.emperorPlayers": "L’Empereur exige au moins 3 joueurs.",
+  "ui.emperor.gold": "Prendre 1 or",
+  "ui.emperor.card": "Prendre une carte au hasard",
+  "ui.emperor.none": "Aucun tribut",
+  "l.emperorTribute": "{name} reçoit un tribut de {target} : {resource}",
+
   "c.blackmailer": "Maître chanteur",
   "a.blackmailer": "Assignez deux menaces : une fleur et un leurre. Après les ressources, chaque personnage menacé peut payer la moitié de son or, arrondie à l’inférieur, pour retirer la menace sans la voir. Après un refus, révélez éventuellement la fleur pour prendre tout son or.",
   "ui.threatTitle": "Assigner les menaces",

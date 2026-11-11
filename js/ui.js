@@ -13,13 +13,13 @@ import { update as tutorialUpdate, tutorialActive } from './tutorial.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ACTIVE = { blackmailer: 'threats', tax_collector: 'tax', marshal: 'marshal', spy: 'spy', magistrate: 'warrants', assassin: 'kill', thief: 'rob', magician: 'mag', warlord: 'war', wizard: 'wiz', seer: 'seer', navigator: 'nav', scholar: 'scholar' };
-const ABILITY_ICON = { threats: 'blackmailer', tax: 'tax_collector', marshal: 'marshal', spy: 'spy', warrants: 'magistrate', kill: 'assassin', rob: 'thief', mag: 'magician', war: 'warlord', wiz: 'wizard', seer: 'seer', nav: 'navigator', scholar: 'scholar' };
-const ABILITY_OF_ACTION = { threats: 'threats', collectTax: 'tax', seize: 'marshal', spy: 'spy', warrants: 'warrants', kill: 'kill', rob: 'rob', swap: 'mag', redraw: 'mag', destroy: 'war', peek: 'wiz', seer: 'seer', nav: 'nav', scholar: 'scholar' };
+const ACTIVE = { emperor: 'emperor', blackmailer: 'threats', tax_collector: 'tax', marshal: 'marshal', spy: 'spy', magistrate: 'warrants', assassin: 'kill', thief: 'rob', magician: 'mag', warlord: 'war', wizard: 'wiz', seer: 'seer', navigator: 'nav', scholar: 'scholar' };
+const ABILITY_ICON = { emperor: 'emperor', threats: 'blackmailer', tax: 'tax_collector', marshal: 'marshal', spy: 'spy', warrants: 'magistrate', kill: 'assassin', rob: 'thief', mag: 'magician', war: 'warlord', wiz: 'wizard', seer: 'seer', nav: 'navigator', scholar: 'scholar' };
+const ABILITY_OF_ACTION = { emperorCrown: 'emperor', threats: 'threats', collectTax: 'tax', seize: 'marshal', spy: 'spy', warrants: 'warrants', kill: 'kill', rob: 'rob', swap: 'mag', redraw: 'mag', destroy: 'war', peek: 'wiz', seer: 'seer', nav: 'nav', scholar: 'scholar' };
 // Colour-blind aid (setting): each district colour also gets a symbol.
 const COLOR_SYM = { yellow: 'king', blue: 'bishop', green: 'merchant', red: 'warlord', purple: 'magician' };
-const BLOCKING = ['draft', 'discard', 'keep', 'wizPick', 'seerGive', 'grave', 'warrantResponse', 'threatResponse', 'threatReveal', 'over'];
-const TURN_SHEETS = ['threats', 'tax', 'marshal', 'spy', 'spyResult', 'warrants', 'kill', 'rob', 'mag', 'war', 'wiz', 'seer', 'nav', 'scholar', 'den', 'lab'];
+const BLOCKING = ['emperorAdvisor', 'draft', 'discard', 'keep', 'wizPick', 'seerGive', 'grave', 'warrantResponse', 'threatResponse', 'threatReveal', 'over'];
+const TURN_SHEETS = ['emperor', 'threats', 'tax', 'marshal', 'spy', 'spyResult', 'warrants', 'kill', 'rob', 'mag', 'war', 'wiz', 'seer', 'nav', 'scholar', 'den', 'lab'];
 export const EMOTES = ['👍', '😂', '😮', '😡', '😈', '👑', '🙏', '🎉'];
 const seatHue = pid => SEAT_HUES[pid % SEAT_HUES.length];
 
@@ -164,6 +164,8 @@ export function createUI(ctx) {
       case 'draw': return t('l.draw', { name: n(e.pid), n: e.n });
       case 'build': return t('l.build', { name: n(e.pid), dist: dname(e.card) });
       case 'tax': return t('l.tax', { name: n(e.pid), n: e.n, pool: e.pool });
+      case 'emperorAdvisor': return t('ui.emperorAdvisor');
+      case 'emperorTribute': return t('l.emperorTribute', { name: n(e.to), target: n(e.from), resource: t('ui.emperor.' + e.resource) });
       case 'collectTax': return t('l.collectTax', { name: n(e.pid), n: e.n });
       case 'seize': return t('l.seize', { name: n(e.pid), target: n(e.target), dist: dname(e.card), n: e.cost });
       case 'complete': return t('l.complete', { name: n(e.pid) });
@@ -280,6 +282,8 @@ export function createUI(ctx) {
       case 'cards': case 'draw': sfx('card', e.n); floater(e.pid, 'cards', `+${e.n}`, 'card'); return 420;
       case 'build': sfx('build'); floater(e.pid, 'plot', `+${e.card.cost}★`, 'pts'); if (!mine) toast(txt, 'c-' + e.card.color); return 750;
       case 'tax': sfx('coin', e.n); floater(e.pid, 'coins', `−${e.n}`, 'loss'); toast(txt); return 420;
+      case 'emperorTribute': sfx(e.resource === 'gold' ? 'coin' : 'crown'); toast(txt, 'gold'); return 650;
+      case 'emperorAdvisor': toast(txt, 'gold'); return 500;
       case 'collectTax': sfx('coin', e.n); floater(e.pid, 'coins', `+${e.n}`, 'gold'); toast(txt, 'gold'); return 650;
       case 'seize': sfx('card', 1); floater(e.pid, 'coins', `−${e.cost}`, 'loss'); floater(e.target, 'coins', `+${e.cost}`, 'gold'); floater(e.pid, 'plot', `+${e.card.cost}★`, 'pts'); floater(e.target, 'plot', `−${e.card.cost}★`, 'loss'); toast(txt); return 1000;
       case 'destroy': sfx('destroy'); floater(e.pid, 'coins', `−${e.cost}`, 'loss'); floater(e.target, 'plot', `−${e.card.cost}★`, 'loss'); toast(txt, 'danger'); return 1000;
@@ -380,7 +384,7 @@ export function createUI(ctx) {
 
     // decisions that can't wait open themselves
     const pend = myTurn ? T.pending : null;
-    const auto = view.interrupt?.pid === view.me ? (view.interrupt.k === 'warrant' ? 'warrantResponse' : ['threatResponse', 'threatReveal'].includes(view.interrupt.k) ? view.interrupt.k : 'grave')
+    const auto = view.interrupt?.pid === view.me ? (view.interrupt.k === 'warrant' ? 'warrantResponse' : ['emperorAdvisor', 'threatResponse', 'threatReveal'].includes(view.interrupt.k) ? view.interrupt.k : 'grave')
       : draftMine ? (view.draft.mustDiscard ? 'discard' : 'draft')
       : pend?.k === 'keep' ? 'keep' : pend?.k === 'wizard' ? 'wizPick' : pend?.k === 'seerGive' ? 'seerGive' : null;
     if (auto && L.sheet !== auto && !L.drawers.some(d => d.sheet === auto)) { L.sheet = auto; L.multi.clear(); }
@@ -520,7 +524,7 @@ export function createUI(ctx) {
     if (has(me, 'laboratory') && !T.used.lab && me.hand.length) b.push(`<button class="btn small" data-a="sheet" data-v="lab">${svg('lab')}<span>${t('ui.lab')}</span></button>`);
     const sel = me.hand.find(c => c.uid === L.sel);
     if (sel && buildState(view, me, sel) === 'ok') b.push(`<button class="btn primary" data-a="build">${svg('build')}<span>${t('ui.buildFor', { n: buildCost(me, sel) })}</span><kbd>B</kbd></button>`);
-    if (T.income) b.push(`<button class="btn ${sel ? '' : 'primary'} end" data-a="end">${svg('end')}<span>${t('ui.endTurn')}</span><kbd>E</kbd></button>`);
+    if (T.income && !(T.charId === 22 && !T.used.ability)) b.push(`<button class="btn ${sel ? '' : 'primary'} end" data-a="end">${svg('end')}<span>${t('ui.endTurn')}</span><kbd>E</kbd></button>`);
     b.push(hintBtn);
     els.actions.innerHTML = b.join('');
     markHint();
@@ -530,6 +534,7 @@ export function createUI(ctx) {
     let s = '';
     const actor = actorOf(view);
     if (view.phase === 'over') s = t('ui.winner', { name: pname(view.winner) });
+    else if (view.interrupt?.k === 'emperorAdvisor') s = t('ui.emperorAdvisor') + ' · ' + esc(pname(view.interrupt.pid));
     else if (view.interrupt && ['threatResponse', 'threatReveal'].includes(view.interrupt.k)) s = view.interrupt.pid === view.me ? t(view.interrupt.k === 'threatResponse' ? 'ui.threatReview' : 'ui.threatRevealTitle') : t('ui.waitingThreat', { name: pname(view.interrupt.pid) });
     else if (myTurn && view.turn.threat === 'gather') s = t('ui.threatGather');
     else if (view.interrupt && view.interrupt.pid !== view.me) s = t(view.interrupt.k === 'warrant' ? 'ui.waitingWarrant' : 'ui.waitingGrave', { name: pname(view.interrupt.pid) });
@@ -557,6 +562,7 @@ export function createUI(ctx) {
     const me = v.players[v.me];
     const cardIn = (list, uid) => list?.find(c => c.uid === uid);
     switch (a.t) {
+      case 'emperorAdvisor': case 'emperorCrown': return t('ui.emperorTitle') + ' · ' + v.players[a.target].name;
       case 'pick': case 'discard': return t('h.' + a.t, { char: cname(a.charId) });
       case 'gold': case 'draw': case 'end': case 'seer': case 'scholar': case 'smithy': case 'seerGive': return t('h.' + a.t);
       case 'build': return t('h.build', { dist: dname(cardIn(me.hand, a.uid)) });
@@ -619,6 +625,7 @@ export function createUI(ctx) {
     if (a.t === 'nav') sel.push(`[data-a="nav"][data-v="${a.choice}"]`);
     if (a.t === 'graveyard') sel.push(`[data-a="${a.take ? 'graveYes' : 'graveNo'}"]`);
     if (a.t === 'warrantResponse') sel.push(`[data-a="warrantReply"][data-v="${a.take ? 'yes' : 'no'}"]`);
+    if (a.t === 'emperorCrown' || a.t === 'emperorAdvisor') sel.push(`[data-a="emperorAssign"][data-v="${a.target}:${a.resource || 'none'}"]`);
     if (a.t === 'threatResponse' || a.t === 'threatReveal') sel.push(`[data-a="threatReply"][data-v="${(a.bribe ?? a.reveal) ? 'yes' : 'no'}"]`);
     sel.forEach(s => root.querySelectorAll(s).forEach(el => el.classList.add('suggest')));
   }
@@ -686,6 +693,16 @@ export function createUI(ctx) {
         { closable: false, foot: `<div class="sh-foot"><button class="btn small ghost hint-btn" data-a="hint">${svg('help')}<span>${t('ui.hint')}</span></button>
           <button class="btn primary" data-a="${go}Go" ${sel ? '' : 'disabled'}>${sel ? t(discarding ? 'dr.discardGo' : 'dr.choose', { char: cname(sel) }) : t('dr.tapCard')}</button></div>` });
       wide = true;
+    } else if (s === 'emperor' || s === 'emperorAdvisor') {
+      const advisor = s === 'emperorAdvisor';
+      const recipients = v.players.filter(q => q.id !== v.me && q.id !== v.crown);
+      html = sheetFrame(t(advisor ? 'ui.emperorAdvisor' : 'ui.emperorTitle'),
+        `<p class="note">${esc(cabil(22))}</p><div class="warrant-choices emperor-choices">${recipients.map(q => {
+          const count = q.handCount ?? q.hand.length;
+          const choices = advisor ? ['none'] : [...(q.gold > 0 ? ['gold'] : []), ...(count ? ['card'] : [])];
+          if (!choices.length) choices.push('none');
+          return `<div><b>${esc(q.name)}</b><div class="seg">${choices.map(resource => `<button class="btn" data-a="emperorAssign" data-v="${q.id}:${resource}">${advisor ? t('ui.confirm') : t('ui.emperor.' + resource)}</button>`).join('')}</div></div>`;
+        }).join('')}</div>`, { closable: !advisor, foot: hintFoot });
     } else if (s === 'threats') {
       const opts = threatTargets(v).sort((a, b) => rankOf(a) - rankOf(b));
       const chosen = (L.threatTargets || []).filter(id => opts.includes(id));
@@ -965,6 +982,13 @@ export function createUI(ctx) {
         sfx('click');
         { const id = L.draftSel; L.draftSel = null; return go({ t: a === 'pickGo' ? 'pick' : 'discard', charId: id }); }
       case 'graveYes': return go({ t: 'graveyard', take: true });
+      case 'emperorAssign': {
+        const [target, resource] = v.split(':');
+        const i = view.interrupt;
+        if (i?.k === 'emperorAdvisor') return go({ t: i.k, target: +target, id: i.id, round: i.round, charId: i.charId });
+        closeSheet();
+        return go({ t: 'emperorCrown', target: +target, resource, round: view.round, charId: view.turn.charId });
+      }
       case 'threatPick': {
         const chosen = L.threatTargets ||= [], id = +v, idx = chosen.indexOf(id);
         if (idx >= 0) chosen.splice(idx, 1);

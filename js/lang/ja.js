@@ -1,5 +1,15 @@
 // 日本語. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.emperor": "皇帝",
+  "a.emperor": "貴族地区ごとに金貨1枚を得る。自分と現在の所有者以外に王冠を渡し、金貨1枚か無作為の手札1枚を取る。両方なければ何も取らない。暗殺された場合はラウンド終了時に王冠だけを渡す。3人以上。",
+  "ui.emperorTitle": "王冠を渡す",
+  "ui.emperorAdvisor": "皇帝の顧問：王冠を渡す",
+  "ui.emperorPlayers": "皇帝は3人以上で使用できます。",
+  "ui.emperor.gold": "金貨1枚を取る",
+  "ui.emperor.card": "無作為のカードを取る",
+  "ui.emperor.none": "貢物なし",
+  "l.emperorTribute": "{name}が{target}から受け取る：{resource}",
+
   "c.blackmailer": "恐喝者",
   "a.blackmailer": "花とおとりの脅迫を1つずつ置く。脅迫された役職は資源獲得後、金の半分（切り捨て）を払い、表を見せずに解除できる。拒否されたら、花を公開して全額を奪える。",
   "ui.threatTitle": "脅迫を配置",

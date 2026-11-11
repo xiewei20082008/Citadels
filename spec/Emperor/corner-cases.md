@@ -1,0 +1,107 @@
+# Emperor corner cases
+
+Scope: potential engine, privacy, and AI turn/round bugs for [goal.md](goal.md), following the [Spy checklist](../spy/corner-cases.md). These are acceptance scenarios, not confirmed defects or completed tests. Emperor is a new rank-4 option; its character ID must not be assumed to equal 4.
+
+## Rule baseline
+
+Use goal.md's published baseline and explicitly labelled project timing/action choices. Source: [Citadels rulebook](https://coolplay.rs/wp-content/uploads/2024/03/Citadels_pravila-Eng.pdf), printed pages 3-4, 7-8, 10, 12, and 14. Future Witch cases are compatibility notes, not requests to add Witch.
+
+For acting Emperor seat `E` and current crown seat `C`, legal recipients are:
+
+```text
+recipients = all player seats except E and C
+normal tribute = exactly one available gold OR one random hand card
+                zero only when both resources are absent
+advisor tribute = zero in every case
+```
+
+When `E == C`, exclude that seat once. Resource selection and target commit together; failed validation consumes neither the ability nor engine randomness.
+
+## Game resolution
+
+| ID | Scenario | Expected result / potential bug to prevent |
+| --- | --- | --- |
+| G01 | Emperor is selected alongside King or Patrician in custom setup | Reject duplicate rank 4; unique IDs do not permit multiple characters of the same rank. |
+| G02 | Two-player setup contains Emperor, including a saved lobby or forged config | Authoritative setup rejects it. Changing player count updates the UI before starting. |
+| G03 | Three-player game; Emperor does not currently hold the crown | Exactly one recipient is legal: the seat that is neither Emperor nor current crown holder. Two characters per seat do not create extra recipients. |
+| G04 | Emperor currently owns the crown | Every other seat is eligible. Do not retain the crown, exclude an arbitrary second seat, or assign it automatically to Emperor. |
+| G05 | Rank-4 character is considered for faceup discard | Preserve rank-based protection. Facedown discard remains legal; no hidden draft ownership is exposed. |
+| G06 | Emperor is unchosen or discarded facedown | Crown remains with its owner; no normal or advisor action is created. |
+| G07 | Emperor has two noble districts and School of Magic | Grant three gold once through character effects. A later noble build gives no second income under the project timing policy. |
+| G08 | No nobles, or only Haunted City in Emperor's city | Grant no noble income. Haunted City's scoring flexibility does not create yellow character income. |
+| G09 | Recipient has both gold and cards | Emperor chooses gold or card; recipient cannot choose, refuse, or substitute a resource. |
+| G10 | Recipient has gold only, cards only, or neither | Require the available kind, or `none` for neither. Crown still moves in the zero-resource case. |
+| G11 | Card tribute selects among duplicate district names | Select uniformly over physical card instances; preserve the selected UID and move exactly one card between hands. |
+| G12 | Deck is empty while recipient has cards | Card tribute still works: it uses the hand, not the deck. Library/Observatory do not alter it. |
+| G13 | Recipient owns a completed city, Bishop, or an unrevealed/killed character | These do not prevent crown assignment or hand/stash tribute. Do not reuse rank-8 shields or Thief character exclusions. |
+| G14 | Assign before gathering, after gathering, or after building | All are legal when no decision is pending. Mandatory gathering and ordinary build limits remain independent. |
+| G15 | Attempt to end before assigning, including an empty-recipient-hand situation | Reject without advancing calls. The crown obligation remains even when tribute is zero. |
+| G16 | Double-click assignment or replay after it succeeds | Resolve once; no second crown movement, resource transfer, event, or random selection. |
+| G17 | Invalid seat, self, current crowned seat, missing/unknown resource, wrong actor/character/round | Reject atomically in both action APIs, preserving seed, flags, hands, gold, crown, and events. |
+| G18 | Submitted resource is no longer available | Reject the complete action and show a fresh permitted choice. Do not move crown first or silently choose a different resource. |
+| G19 | Three-player seat has Emperor and another character | Shared hand/stash receive tribute once. The other character cannot assign again; the recipient is still another seat. |
+| G20 | Crown moves halfway through the round | Keep the active turn and ascending calls intact. The next draft alone uses the new starting seat. |
+| G21 | Tribute gold funds a build, or card tribute provides a new buildable card | Re-evaluate legal builds from the resulting hand/stash. Apply construction rules and any later tax normally. |
+| G22 | Gold tribute or random card transfer occurs | Conserve gold/cards; no bank income, tax-pool change, warrant, Graveyard, construction count, or deck-draw count is generated by the transfer itself. |
+
+## Round end and character interactions
+
+| ID | Scenario | Expected result / potential bug to prevent |
+| --- | --- | --- |
+| R01 | Assassinated Emperor's rank is called | Skip its entire normal turn and income. Do not assign the crown or take tribute at rank 4. |
+| R02 | All calls finish with a selected, assassinated Emperor | Open one advisor decision for its holder. Route the actor even with `turn === null`; do not automatically crown that holder. |
+| R03 | Advisor assigns to a rich recipient | Move crown only; no gold/card transfer and no resource-choice prompt. |
+| R04 | Advisor already owns crown, or does not own it | Apply the same exclusion set as a normal Emperor; in a three-player game there are respectively two or one legal recipients. |
+| R05 | Last character completes a city before advisor resolution | Resolve advisor before scoring/finish. Keep completion owner, character ownership, and final-round state while waiting. |
+| R06 | Maximum-round cutoff is reached | Finish the advisor once before applying the existing cutoff. No unwanted next draft or repeated end-round loop. |
+| R07 | Normal assignment action sent during advisor stage, or advisor response during normal turn | Reject; stage-specific schemas and decision identity cannot be interchanged. |
+| R08 | Wrong-seat, stale, malformed, or repeated advisor response | Preserve the pending decision and continuation on failure; after success, reject retries without a second round transition. |
+| R09 | Emperor unchosen, living, or a different rank was killed | Do not open an advisor. King/Patrician still use their own inheritance rule. |
+| R10 | Queen sits next to Emperor but not the new crown owner | Bonus follows the rank-4 holder's seat. Reversing those positions must not award a crown-owner adjacency bonus. |
+| R11 | Queen sits next to an assassinated Emperor | Award the bonus once at end-of-round reveal, including the final round; no early Queen-turn payout or duplicate after advisor continuation. Retain King/Patrician regression coverage. |
+| R12 | Blackmailer threatened Emperor | Finish resource draw/keep and threat before noble income or assignment. A bribe/refusal can change available build gold but cannot erase mandatory assignment. |
+| R13 | Emperor build opens a Magistrate warrant, or another decision is pending | Finish that decision before assigning. Resume the same turn with income, build allowance, and assignment flag intact. |
+| R14 | Emperor assigned before a later warrant response | The response cannot reset assignment availability or move crown again. |
+| R15 | Future Witch possesses Emperor | Use the published Witch delegation for crown choice and tribute; do not copy King/Patrician's possession exception. Out of current implementation scope. |
+
+## Privacy, persistence, and multiplayer
+
+| ID | Scenario | Expected result / potential bug to prevent |
+| --- | --- | --- |
+| P01 | Recipient/resource selection changes before commitment | Expose only public stash and hand counts; no hand inspection or random-card preview. |
+| P02 | A peer submits a card UID, random index, or reward amount | Host derives the transfer from its own state and seeded randomness; forged fields cannot control the result. |
+| P03 | Other seats or spectators receive `viewFor()` after card tribute | Show crown and public counts, without the transferred card identity or UID in views, events, logs, animations, or hints. |
+| P04 | Former and new card owners reconnect | Each receives its permitted current hand/knowledge. No whole-hand reveal, persistent knowledge feature, or public card event is invented to render the transfer. |
+| P05 | An earlier Spy snapshot includes a card that is later transferred | Snapshot remains historical; never update it to track the hand. Conservation counts only physical zones, not observation copies. |
+| P06 | Save/reload immediately before or after normal assignment | Restore completion status and actual transfer; no second payment, random reroll, or blocked end after success. |
+| P07 | Save/reload during advisor decision or after its response | Restore actor, decision identity, and round-end continuation. Resolve once, then start the next round or finish as appropriate. |
+| P08 | AI takeover, host recovery, or remote advisor actor with no live turn | Controller routes and schedules the correct seat. No hidden human-only confirmation or assumption that every interrupt carries a district card. |
+| P09 | Delayed normal/advisor request arrives in a later round | Reject by round/character and advisor decision identity. A reset usage flag alone is insufficient protection. |
+
+## AI decisions and complete rounds
+
+| ID | Scenario | Expected result / potential bug to prevent |
+| --- | --- | --- |
+| A01 | Hidden hands/deck/draft assignments differ, permitted views are identical | With the same AI random stream, produce the same decision. Do not consult host seed or hidden card identities to predict tribute. |
+| A02 | Compare recipients with unequal threat and resources | Balance tribute against giving draft priority to an opponent; do not always crown the richest player or value the gift as Emperor's own first pick. |
+| A03 | Choose between one gold and a random card | Account for current builds and public resource counts. Estimate card value without choosing a desired hidden card or treating duplicate names as one outcome. |
+| A04 | Every legal recipient has no resources | Select a legal recipient with `none` and progress. Do not skip, return an invalid target, or retry `end` indefinitely. |
+| A05 | All recipient utilities tie or are negative | Use a stable legal choice. Mandatory assignment and advisor decisions cannot be skipped for negative utility. |
+| A06 | Current crowned seat is Emperor | Value the loss of existing crown priority; never propose self to retain it. |
+| A07 | Advisor stage has no active `turn` | AI and `safeAction()` return an advisor response before generic income/end fallbacks, without dereferencing a null turn. |
+| A08 | Game is known to end this round | Ignore nonexistent future draft benefit. Normal tribute can still affect building/scoring; advisor has no tribute or extra turn. |
+| A09 | Resources/building/interrupt change the situation before assignment | Recompute target/resource legality from a fresh view and continue on rejection; no stale card count, cached budget, or consumed optional plan blocks the mandatory action. |
+| A10 | Search determinizes at advisor stage or plays into it | Preserve round-end continuation and route the advisor before scoring/new round. No invented hand, district card in transit, or normal Emperor turn. |
+| A11 | Search evaluates random card candidates | Compare across consistent sampled worlds and average random outcomes. Do not exploit the authoritative random index or leak one simulated player's knowledge into another policy. |
+| A12 | Search reaches its rollout bound or primary AI action fails | Fallback completes the pending legal decision. Avoid advisor loops and false repeated transfer rewards. |
+| A13 | All-AI games with Emperor across 3-7 players and alternate casts | Terminate with legal actions, nonnegative gold, conserved physical cards, one valid crown seat, and no unresolved advisor at `phase === 'over'`. Include Blackmailer/Magistrate/Spy and Queen casts. |
+
+## Integration checks and suggested validation
+
+- `js/data.js`, lobby/custom selection, and engine setup: unique ID, rank 4, yellow income, two-player rejection, and faceup protection; preserve presets and King/Patrician behavior.
+- `js/engine.js`: `applyCharacterEffects()`, normal action validation, `currentActor()`, `endRound()` continuation, Queen timing, `viewFor()`, events/statistics, and save versioning. Both immutable and in-place actions obey the same rules.
+- `js/ai.js` and `js/search.js`: draft valuation, legal target/resource candidates, mandatory fallbacks, random transfer expectations, null-turn advisor stages, and permitted-information rollouts.
+- `js/main.js`, `js/ui.js`, `js/scene.js`, and network flow: normal recipient/resource picker, end-turn obligation feedback, remote advisor prompt, AI scheduling, public/private transfer feedback, and correct crown display.
+- `js/i18n.js`, all `js/lang/*.js`, and icons/help: distinguish normal assignment, random tribute, killed advisor, and two-player restriction from King/Patrician inheritance.
+
+When implementation is requested, add focused Emperor scenarios, run existing engine/Spy/Magistrate/Tax Collector-Marshal and relevant Blackmailer coverage, then pressure/twin-world tests for legal Emperor casts. Include search smoke games through living and killed Emperor paths, final-round advisor fixtures, save/reload, AI takeover, live host/peer privacy, and desktop plus 393x852 HUD checks. These are proposed checks; no execution results are claimed here.

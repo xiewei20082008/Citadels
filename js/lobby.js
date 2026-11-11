@@ -7,7 +7,7 @@ import { tutorialSeen } from './tutorial.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const RANK_OPTS = { 1: [1, 17], 2: [2, 18, 21], 3: [3, 11, 15], 4: [4, 12], 5: [5, 13], 6: [6, 16], 7: [7, 10, 14], 8: [8, 20], 9: [9, 19, 0] };
+const RANK_OPTS = { 1: [1, 17], 2: [2, 18, 21], 3: [3, 11, 15], 4: [4, 12, 22], 5: [5, 13], 6: [6, 16], 7: [7, 10, 14], 8: [8, 20], 9: [9, 19, 0] };
 
 function load() {
   try { return JSON.parse(localStorage.getItem('c3d.prefs')) || {}; } catch { return {}; }
@@ -35,7 +35,7 @@ export function createLobby(ctx) {
       <div class="seg wrap">${[...Object.keys(PRESETS), 'custom'].map(k => `<button class="${preset === k ? 'on' : ''}" data-a="preset" data-v="${k}">${t('lb.preset.' + k)}</button>`).join('')}</div>
       <div class="ranks ${preset === 'custom' || L.custom ? 'open' : ''}">${Object.entries(RANK_OPTS).map(([r, ids]) => {
         const cur = L.chars.find(c => CHAR[c].rank === +r) || 0;
-        return `<div class="rank-row"><span class="rk">${ROMAN[r]}</span><div class="seg">${ids.map(id => id ? `<button class="${cur === id ? 'on' : ''}" style="--cc:${CHAR[id].color}" data-a="rankpick" data-r="${r}" data-v="${id}" title="${esc(cabil(id))}">${svg(CHAR[id].key)}${esc(cname(id))}</button>`
+        return `<div class="rank-row"><span class="rk">${ROMAN[r]}</span><div class="seg">${ids.map(id => id ? `<button class="${cur === id ? 'on' : ''}" style="--cc:${CHAR[id].color}" data-a="rankpick" data-r="${r}" data-v="${id}" ${id === 22 && L.screen === 'solo' && L.opp === 1 ? 'disabled' : ''} title="${esc(cabil(id))}">${svg(CHAR[id].key)}${esc(cname(id))}</button>`
           : `<button class="${cur === 0 ? 'on' : ''}" data-a="rankpick" data-r="${r}" data-v="0">—</button>`).join('')}</div></div>`;
       }).join('')}</div>
       <p class="note left">${t('lb.presetDesc.' + preset)}</p>
@@ -74,7 +74,7 @@ export function createLobby(ctx) {
       case 'solo':
         body = `${back}<h2>${t('lb.solo')}</h2>${err}${identity()}
           <div class="field row"><span>${t('lb.opponents')}</span><div class="stepper"><button data-a="opp" data-v="-1">${svg('minus')}</button><b>${L.opp}</b><button data-a="opp" data-v="1">${svg('plus')}</button></div></div>
-          ${charSetup()}
+          ${charSetup()}${L.opp === 1 && L.chars.includes(22) ? `<p class="note">${t('ui.emperorPlayers')}</p>` : ''}
           <button class="btn primary big wide" data-a="startSolo">${svg('play')}<span>${t('lb.start')}</span></button>`;
         break;
       case 'host':
@@ -85,9 +85,9 @@ export function createLobby(ctx) {
         body = `${back}<h2>${t('lb.host')}</h2>${err}
           <div class="code-box"><span>${t('lb.roomCode')}</span><b>${esc(L.roomCode)}</b><button class="btn small" data-a="copy">${svg('copy')}${t(L.copied ? 'lb.copied' : 'lb.copy')}</button></div>
           <p class="note">${t('lb.share')}</p>
-          <div class="field"><span>${t('lb.seats')} · ${L.seats.length}/7 <span class="muted">(${t('lb.minPlayers')})</span></span>${seatsList(true)}
+          <div class="field"><span>${t('lb.seats')} · ${L.seats.length}/7 <span class="muted">(${t('lb.minPlayers')})</span></span>${seatsList(true)}${L.seats.length === 2 && L.chars.includes(22) ? `<p class="note">${t('ui.emperorPlayers')}</p>` : ''}
           <button class="btn small" data-a="addAI" ${L.seats.length >= 7 ? 'disabled' : ''}>${svg('plus')}${t('lb.addAI')}</button></div>
-          <button class="btn primary big wide" data-a="startHost" ${L.seats.length >= 2 ? '' : 'disabled'}>${svg('play')}<span>${t('lb.start')}</span></button>`;
+          <button class="btn primary big wide" data-a="startHost" ${L.seats.length >= 2 && !(L.seats.length === 2 && L.chars.includes(22)) ? '' : 'disabled'}>${svg('play')}<span>${t('lb.start')}</span></button>`;
         break;
       case 'join':
         body = `${back}<h2>${t('lb.join')}</h2>${err}${identity()}
@@ -134,7 +134,7 @@ export function createLobby(ctx) {
       case 'tutorial': persist(); return ctx.startTutorial({ name: myName(), avatar: L.avatar });
       case 'timer': L.timer = +v; break;
       case 'continue': return ctx.cont();
-      case 'startSolo': persist(); return ctx.startSolo({ name: myName(), avatar: L.avatar, opp: L.opp, chars: L.chars, goal: L.goal, level: L.level });
+      case 'startSolo': if (L.opp === 1 && L.chars.includes(22)) { L.error = t('ui.emperorPlayers'); render(); return; } persist(); return ctx.startSolo({ name: myName(), avatar: L.avatar, opp: L.opp, chars: L.chars, goal: L.goal, level: L.level });
       case 'createRoom': persist(); return ctx.createRoom({ name: myName(), avatar: L.avatar, chars: L.chars, goal: L.goal, level: L.level, timer: L.timer });
       case 'copy': navigator.clipboard?.writeText(L.roomCode); L.copied = true; setTimeout(() => { L.copied = false; render(); }, 1500); break;
       case 'addAI': ctx.addAI(); return;

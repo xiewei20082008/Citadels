@@ -28,6 +28,7 @@ export const CHARS = [
   { id: 18, rank: 2, key: 'spy', color: '#688f9c' },
   { id: 19, rank: 9, key: 'tax_collector', color: '#b9935a' },
   { id: 20, rank: 8, key: 'marshal', color: '#d2544a', income: 'red' },
+  { id: 22, rank: 4, key: 'emperor', color: '#e8b34a', income: 'yellow' },
   { id: 21, rank: 2, key: 'blackmailer', color: '#b16e91' },
 ];
 export const CHAR = Object.fromEntries(CHARS.map(c => [c.id, c]));

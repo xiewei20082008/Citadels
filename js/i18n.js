@@ -38,6 +38,16 @@ export function setLang(l) {
 }
 
 const D = {
+  "c.emperor": ["Emperor", "皇帝"],
+  "a.emperor": ["Gain 1 gold per noble district. You must give the crown to someone other than yourself or its current owner, taking 1 gold or a random hand card from the recipient (nothing if both are empty). If killed, assign the crown at round end without tribute. Requires 3+ players.", "每座贵族建筑获得1金币。必须将王冠交给自己和当前持有者之外的玩家，并拿走其1金币或随机1张手牌（两者皆无则不拿）。被杀后在回合结束时分配王冠，不收贡品。至少3人。"],
+  "ui.emperorTitle": ["Assign the crown", "分配王冠"],
+  "ui.emperorAdvisor": ["Emperor’s advisor: assign the crown", "皇帝顾问：分配王冠"],
+  "ui.emperorPlayers": ["Emperor requires at least 3 players.", "皇帝至少需要3名玩家。"],
+  "ui.emperor.gold": ["Take 1 gold", "拿走1金币"],
+  "ui.emperor.card": ["Take a random card", "随机拿走1张牌"],
+  "ui.emperor.none": ["No tribute", "无贡品"],
+  "l.emperorTribute": ["{name} receives tribute from {target}: {resource}", "{name}从{target}收取贡品：{resource}"],
+
   "c.blackmailer": ["Blackmailer", "勒索者"],
   "a.blackmailer": ["Assign two threats: one flower, one decoy. After gathering resources, each threatened character may pay half their gold (rounded down) to remove the threat unseen. After refusal, you may reveal the flower to take all their gold.", "分配两个威胁标记：一朵花、一个诱饵。受威胁角色收集资源后，可支付一半金币（向下取整）并秘密移除标记。若其拒绝，你可翻开花朵标记，拿走其全部金币。"],
   "ui.threatTitle": ["Assign threats", "分配威胁"],

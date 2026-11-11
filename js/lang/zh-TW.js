@@ -1,5 +1,15 @@
 // 繁體中文. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.emperor": "皇帝",
+  "a.emperor": "每座貴族建築獲得1金幣。必須將王冠交給自己和目前持有者以外的玩家，拿走其1金幣或隨機1張手牌（兩者皆無則不拿）。被殺後在輪末分配王冠，不收貢品。至少3人。",
+  "ui.emperorTitle": "分配王冠",
+  "ui.emperorAdvisor": "皇帝顧問：分配王冠",
+  "ui.emperorPlayers": "皇帝至少需要3名玩家。",
+  "ui.emperor.gold": "拿走1金幣",
+  "ui.emperor.card": "隨機拿走1張牌",
+  "ui.emperor.none": "無貢品",
+  "l.emperorTribute": "{name}從{target}收取貢品：{resource}",
+
   "c.blackmailer": "勒索者",
   "a.blackmailer": "分配兩個威脅標記：一朵花、一個誘餌。受威脅角色收集資源後，可支付一半金幣（無條件捨去）並秘密移除標記。若其拒絕，你可翻開花朵標記，拿走其全部金幣。",
   "ui.threatTitle": "分配威脅",

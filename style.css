@@ -960,3 +960,9 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
     backdrop-filter: none; -webkit-backdrop-filter: none;
   }
 }
+
+/* Compact tribute controls stay inside each recipient column on narrow screens. */
+.emperor-choices > div { min-width: 0; }
+.emperor-choices b { display: block; overflow-wrap: anywhere; margin-bottom: 4px; }
+.emperor-choices .seg { display: flex; flex-direction: column; }
+.emperor-choices .btn { justify-content: center; }

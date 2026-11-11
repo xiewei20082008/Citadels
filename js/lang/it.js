@@ -1,5 +1,15 @@
 // Italiano. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.emperor": "Imperatore",
+  "a.emperor": "Ottieni 1 oro per quartiere nobile. Devi dare la corona a un giocatore diverso da te e dal proprietario attuale; prendi 1 oro o una carta casuale dalla sua mano (nulla se non ha entrambi). Se ucciso, assegna la corona a fine round senza tributo. Almeno 3 giocatori.",
+  "ui.emperorTitle": "Assegna la corona",
+  "ui.emperorAdvisor": "Consigliere imperiale: assegna la corona",
+  "ui.emperorPlayers": "L’Imperatore richiede almeno 3 giocatori.",
+  "ui.emperor.gold": "Prendi 1 oro",
+  "ui.emperor.card": "Prendi una carta casuale",
+  "ui.emperor.none": "Nessun tributo",
+  "l.emperorTribute": "{name} riceve tributo da {target}: {resource}",
+
   "c.blackmailer": "Ricattatore",
   "a.blackmailer": "Assegna due minacce: un fiore e un diversivo. Dopo le risorse, ogni minacciato può pagare metà del suo oro (arrotondata per difetto) per rimuovere la minaccia coperta. Se rifiuta, puoi rivelare il fiore e prendere tutto il suo oro.",
   "ui.threatTitle": "Assegna minacce",

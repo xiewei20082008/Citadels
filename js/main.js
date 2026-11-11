@@ -362,6 +362,7 @@ function removeSeat(i) {
 function startHost() {
   const R = G.room;
   if (!R || R.seats.length < 2) return;
+  if (R.seats.length === 2 && R.chars.includes(22)) { ui.toast(t('ui.emperorPlayers'), 'danger'); return; }
   G.cfg = { players: R.seats.map(s => ({ name: s.name, avatar: s.avatar, ai: s.ai })), chars: R.chars, goal: R.goal, level: R.level };
   G.me = 0;
   enterGame('host');

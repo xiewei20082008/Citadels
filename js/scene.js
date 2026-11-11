@@ -132,7 +132,7 @@ export function createScene(root, hooks = {}) {
     },
     fx(e) {
       if (calm) return;
-      if (e.k === 'bribe' || e.k === 'threatRevealed') {
+      if (e.k === 'emperorTribute' || e.k === 'bribe' || e.k === 'threatRevealed') {
         for (const pid of new Set([e.from, e.to])) {
           const seat = seats.get(pid);
           if (!seat) continue;

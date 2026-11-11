@@ -1,5 +1,15 @@
 // 한국어. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "c.emperor": "황제",
+  "a.emperor": "귀족 건물마다 금화 1개를 얻습니다. 자신과 현재 소유자 외의 플레이어에게 왕관을 주고 금화 1개 또는 무작위 손패 1장을 가져옵니다. 둘 다 없으면 받지 않습니다. 암살되면 라운드 끝에 공물 없이 왕관을 줍니다. 3인 이상.",
+  "ui.emperorTitle": "왕관 수여",
+  "ui.emperorAdvisor": "황제의 고문: 왕관 수여",
+  "ui.emperorPlayers": "황제는 3인 이상에서 사용합니다.",
+  "ui.emperor.gold": "금화 1개 받기",
+  "ui.emperor.card": "무작위 카드 받기",
+  "ui.emperor.none": "공물 없음",
+  "l.emperorTribute": "{name}: {target}에게 공물 받음 — {resource}",
+
   "c.blackmailer": "협박자",
   "a.blackmailer": "꽃과 미끼 협박 표식을 하나씩 놓습니다. 협박받은 캐릭터는 자원 획득 후 금의 절반(내림)을 내고 표식을 비공개로 제거할 수 있습니다. 거절하면 꽃을 공개해 금을 모두 빼앗을 수 있습니다.",
   "ui.threatTitle": "협박 배치",
