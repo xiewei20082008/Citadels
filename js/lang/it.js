@@ -1,5 +1,6 @@
 // Italiano. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "ui.pinChronicle": "Fissa cronaca",
   "ui.districtEffects": "Effetti dei quartieri",
   "ui.pass": "Passa",
   "ui.payment": "Scegli il pagamento",

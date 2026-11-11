@@ -1,5 +1,6 @@
 // 繁體中文. Keys mirror the English table in i18n.js; anything missing falls back to English.
 export default {
+  "ui.pinChronicle": "固定編年史",
   "ui.districtEffects": "建築效果",
   "ui.pass": "跳過",
   "ui.payment": "選擇支付方式",

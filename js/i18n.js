@@ -276,6 +276,7 @@ const D = {
   'ui.slain': ['Slain', '被刺杀'],
   'ui.robbedMark': ['Robbed', '被盗'],
   'ui.log': ['Chronicle', '编年史'],
+  'ui.pinChronicle': ['Pin Chronicle', '固定编年史'],
   'ui.rules': ['How to play', '玩法说明'],
   'ui.menu': ['Menu', '菜单'],
   'ui.leave': ['Leave game', '离开游戏'],

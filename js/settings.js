@@ -6,9 +6,10 @@ import { sfx, soundOn, setSound, musicEnabled, setMusic, volume, setVolume, TRAC
 
 const KEY = 'c3d.settings';
 const systemCalm = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
-const DEFAULTS = { confirmEnd: true, turnAlert: true, tips: true, symbols: false, reduceMotion: systemCalm() };
+const DEFAULTS = { confirmEnd: true, turnAlert: true, tips: true, symbols: false, chroniclePinned: false, reduceMotion: systemCalm() };
 export const prefs = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY)) }; } catch { return { ...DEFAULTS }; } })();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch {} };
+export function setChroniclePinned(on) { prefs.chroniclePinned = on; save(); }
 
 let ctx = null, root = null, opener = null, resetArmed = false, tipsReset = false;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
