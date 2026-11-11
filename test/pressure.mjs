@@ -4,7 +4,7 @@
 //  2. Robustness: a random-move "monkey" seat mixed with AIs never breaks the rules or stalls.
 //  3. Behaviour: targeting, repetition and silly moves, measured rather than eyeballed.
 import assert from 'node:assert/strict';
-import { createGame, act, viewFor, currentActor, rankOf, score, buildCost, canPlace, charsPerPlayer, has } from '../js/engine.js';
+import { constructionOptions, physicalCards, createGame, act, viewFor, currentActor, rankOf, score, buildCost, canPlace, charsPerPlayer, has } from '../js/engine.js';
 import { aiAction, safeAction } from '../js/ai.js';
 import { PRESETS, CHAR, makeDeck } from '../js/data.js';
 
@@ -31,7 +31,10 @@ function twin(s, pid) {
   const others = t.players.filter(p => p.id !== pid);
   const peek = t.turn?.pid === pid ? t.turn.spyPeek : null;
   const known = new Set(peek?.cards.map(c => c.uid) || []);
-  const cards = shuffle([...t.deck, ...others.flatMap(p => p.hand)].filter(c => !known.has(c.uid)));
+  const hiddenStored = t.players.flatMap(p => p.city.flatMap(m => (m.stored || []).filter(c => p.id !== pid && !c.knownTo?.includes(pid))));
+  const cards = shuffle([...t.deck, ...others.flatMap(p => p.hand), ...hiddenStored].filter(c => !known.has(c.uid)));
+  for (const p of t.players) for (const m of p.city) if (m.stored) m.stored = m.stored.map(c =>
+    p.id !== pid && !c.knownTo?.includes(pid) ? { ...cards.shift(), knownTo: c.knownTo } : c);
   for (const p of others) {
     const seen = peek?.target === p.id ? structuredClone(peek.cards) : [];
     p.hand = [...seen, ...cards.splice(0, p.hand.length - seen.length)];
@@ -39,9 +42,10 @@ function twin(s, pid) {
   t.deck = cards;
   const d = t.draft, picking = t.phase === 'draft' && d.order[d.idx] === pid;
   if (!picking) {
-    const hid = p => p.chars.filter(c => !t.revealed.includes(c));
+    const remembered = new Set(t.players[pid].theaterKnowledge?.map(k => k.charId) || []);
+    const hid = p => p.chars.filter(c => !t.revealed.includes(c) && !remembered.has(c));
     const pool = shuffle([...d.faceDown, ...(t.phase === 'draft' ? d.avail : []), ...others.flatMap(hid)]);
-    for (const p of others) { const k = hid(p).length; p.chars = [...p.chars.filter(c => t.revealed.includes(c)), ...pool.splice(0, k)]; }
+    for (const p of others) { const k = hid(p).length; p.chars = [...p.chars.filter(c => t.revealed.includes(c) || remembered.has(c)), ...pool.splice(0, k)]; }
     if (t.phase === 'draft') d.avail = pool.splice(0, d.avail.length);
     d.faceDown = pool;
   }
@@ -50,14 +54,63 @@ function twin(s, pid) {
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 // ── legal moves (for the monkey) ─────────────────────────────────────────────
+// Include invalid variants too: the monkey filters through act(), and verifies
+// that evaluating rejected requests never changes the original state.
+function constructionCandidates(s, p, card, wizard = false) {
+  const base = wizard ? { t: 'wizTake', uid: card.uid, build: true } : { t: 'build', uid: card.uid };
+  const out = [{ ...base }, ...constructionOptions(s, p, card, wizard)];
+  const spare = p.hand.filter(c => c.uid !== card.uid), payment = shuffle(spare.map(c => c.uid)).slice(0, card.cost);
+  out.push({ ...base, pay: payment }, { ...base, pay: 'invalid' }, { ...base, payment: 'invalid' });
+  if (payment.length) out.push({ ...base, pay: [payment[0], payment[0]] });
+  for (const payment of ['framework', 'necropolis']) {
+    // Owned, foreign, missing, and mixed payment sources all reach validation.
+    // Legal combinations are already included above; bound the invalid samples.
+    const owned = p.city.find(c => payment === 'framework' ? c.id === 'framework' : card.id === 'necropolis');
+    const wrong = p.city.find(c => payment === 'framework' ? c.id !== 'framework' : card.id !== 'necropolis');
+    const foreign = s.players.find(q => q.id !== p.id && q.city.length)?.city[0];
+    const sources = [...new Set([owned, wrong, foreign].filter(Boolean))];
+    for (const c of sources) out.push({ ...base, payment, sacrifice: c.uid });
+    out.push({ ...base, payment, sacrifice: '__missing__' });
+    if (spare.length) out.push({ ...base, payment, sacrifice: spare[0].uid });
+    const source = owned || sources[0];
+    if (source && spare.length) out.push({ ...base, payment, sacrifice: source.uid, pay: [spare[0].uid] });
+  }
+  return out;
+}
+
+function districtCandidates(s, p) {
+  const out = [];
+  for (const q of s.players) for (const c of q.city) {
+    if (c.id === 'armory') {
+      for (const target of s.players) for (const card of target.city)
+        out.push({ t: 'armory', armory: c.uid, target: target.id, uid: card.uid });
+      out.push({ t: 'armory', armory: c.uid, target: p.id, uid: '__missing__' });
+    }
+    if (c.id === 'museum') {
+      for (const card of p.hand) out.push({ t: 'museum', museum: c.uid, uid: card.uid });
+      const foreign = s.players.find(target => target.id !== p.id && target.hand.length)?.hand[0];
+      out.push({ t: 'museum', museum: c.uid, uid: foreign?.uid || '__missing__' });
+    }
+  }
+  return out;
+}
+
 function candidates(s, pid) {
   const p = s.players[pid], out = [];
+  if (s.interrupt?.k === 'theater') {
+    const i = s.interrupt, base = { t: 'theater', id: i.id, round: i.round, pass: false };
+    return [{ ...base, pass: true }, ...p.chars.flatMap(charId => s.players.map(q => ({ ...base, charId, target: q.id }))),
+      { ...base, pass: true, id: i.id - 1 }, { ...base, pass: true, round: i.round - 1 },
+      { ...base, charId: -1, target: (pid + 1) % s.players.length },
+      { ...base, charId: p.chars[0], target: s.players.length },
+      { ...base, charId: p.chars[0], target: (pid + 1) % s.players.length, incoming: -1 }];
+  }
   if (s.interrupt?.k === 'warrant') return [true, false].map(take => ({
     t: 'warrantResponse', id: s.interrupt.id, round: s.interrupt.round, take,
   }));
   if (s.interrupt) return [{ t: 'graveyard', take: true }, { t: 'graveyard', take: false }];
   if (s.phase === 'draft') return s.cfg.chars.flatMap(c => [{ t: 'pick', charId: c }, { t: 'discard', charId: c }]);
-  const T = s.turn, P = T.pending;
+  const T = s.turn, P = T.pending, districts = districtCandidates(s, p);
   out.push({ t: 'collectTax', round: s.round, charId: T.charId });
   for (const q of s.players) for (const c of q.city)
     out.push({ t: 'seize', target: q.id, uid: c.uid, round: s.round, charId: T.charId });
@@ -68,18 +121,21 @@ function candidates(s, pid) {
     const targets = shuffle([...s.cfg.chars]).slice(0, 3);
     out.push({ t: 'warrants', targets, signed: targets[0] });
   }
-  if (P?.k === 'keep') return P.cards.map(c => ({ t: 'keep', uids: [c.uid] }));
-  if (P?.k === 'wizard') return P.cards.flatMap(c => [{ t: 'wizTake', uid: c.uid }, { t: 'wizTake', uid: c.uid, build: true }]);
-  if (P?.k === 'seerGive') return [{ t: 'seerGive', uids: shuffle(p.hand.map(c => c.uid)).slice(0, P.targets.length) }];
+  if (P?.k === 'keep') return [...districts, ...P.cards.map(c => ({ t: 'keep', uids: [c.uid] }))];
+  if (P?.k === 'wizard') return [...districts, ...P.cards.flatMap(c => [{ t: 'wizTake', uid: c.uid }, ...constructionCandidates(s, p, c, true)])];
+  if (P?.k === 'seerGive') return [...districts, { t: 'seerGive', uids: shuffle(p.hand.map(c => c.uid)).slice(0, P.targets.length) }];
   out.push({ t: 'gold' }, { t: 'draw' }, { t: 'end' }, { t: 'seer' }, { t: 'scholar' }, { t: 'smithy' }, { t: 'nav', choice: 'gold' }, { t: 'nav', choice: 'cards' });
   for (let r = 1; r <= 9; r++) out.push({ t: 'kill', rank: r }, { t: 'rob', rank: r });
   for (const q of s.players) out.push({ t: 'swap', target: q.id }, { t: 'peek', target: q.id }, ...q.city.map(c => ({ t: 'destroy', target: q.id, uid: c.uid })));
-  for (const c of p.hand) out.push({ t: 'build', uid: c.uid }, { t: 'lab', uid: c.uid }, { t: 'build', uid: c.uid, pay: p.hand.filter(x => x !== c).slice(0, 2).map(x => x.uid) });
+  for (const c of p.hand) out.push(...constructionCandidates(s, p, c), { t: 'lab', uid: c.uid });
+  out.push(...districts);
   if (p.hand.length) out.push({ t: 'redraw', uids: p.hand.slice(0, 1 + Math.floor(Math.random() * p.hand.length)).map(c => c.uid) });
   return out;
 }
 function monkey(s, pid) {
+  const before = JSON.stringify(s);
   const legal = shuffle(candidates(s, pid)).map(a => [a, act(s, pid, a)]).filter(([, n]) => !n.error);
+  assert.equal(JSON.stringify(s), before, 'candidate actions mutated the original state');
   // a monkey that never ends its turn would loop forever; prefer anything but 'end' half the time
   const pick = legal.find(([a]) => a.t !== 'end' && Math.random() < 0.5) || legal[0];
   assert.ok(pick, 'monkey has no legal move');
@@ -145,9 +201,9 @@ function play({ n, chars, goal, levels, monkeySeat = -1, seedNo }) {
         K.turns++;
         const T = s.turn;
         if (CHAR[T.charId].key === 'warlord') K.warTurns++;
-        if (T.built < T.max && me.hand.some(c => canPlace(me, c) && buildCost(me, c) <= me.gold && c.id !== 'secret_vault')) K.missed++;
+        if (me.hand.some(c => constructionOptions(s, me, c).length)) K.missed++;
       }
-      if (a.t === 'build' && me.city.length + 1 >= goal && s.firstComplete === null) {
+      if (a.t === 'build' && n2.firstComplete === pid && s.firstComplete === null) {
         K.endGame++;
         const after = structuredClone(n2);
         if (others.some(q => score(after, after.players[q.id]).total > score(after, after.players[pid]).total + 4)) K.endGameBehind++;
@@ -156,10 +212,9 @@ function play({ n, chars, goal, levels, monkeySeat = -1, seedNo }) {
     for (const e of n2.ev) if (e.id > s.evSeq && e.k === 'robbed' && levels[e.to]) lvl(levels[e.to]).stolen += e.n;
     s = n2;
     // invariants
-    const inPlay = s.deck.length + s.players.reduce((t, p) => t + p.hand.length + p.city.length, 0) +
-      (s.turn?.pending?.k === 'keep' ? s.turn.pending.cards.length : 0) + (s.interrupt ? 1 : 0);
+    const cards = physicalCards(s), inPlay = cards.length;
     assert.equal(inPlay, TOTAL, 'cards conserved');
-    assert.equal(new Set([...s.deck, ...s.players.flatMap(p => [...p.hand, ...p.city])].map(c => c.uid)).size, inPlay - (s.turn?.pending?.k === 'keep' ? s.turn.pending.cards.length : 0) - (s.interrupt ? 1 : 0), 'duplicate card');
+    assert.equal(new Set(cards.map(c => c.uid)).size, inPlay, 'duplicate card');
     s.players.forEach(p => assert.ok(p.gold >= 0 && Number.isInteger(p.gold), 'gold'));
     assert.ok(s.taxPool >= 0 && Number.isInteger(s.taxPool), 'tax pool');
     if (s.phase === 'turns') {

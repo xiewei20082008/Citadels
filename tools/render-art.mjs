@@ -7,7 +7,9 @@ const browser = await chromium.launch({ channel: process.env.CITADELS_BROWSER ||
 try {
   const page = await browser.newPage();
   page.on('pageerror', e => console.error(e));
-  await page.goto((process.env.CITADELS_URL || 'http://localhost:5173') + '/tools/render-art.html');
+  const ids = process.argv.slice(2).join(',');
+  await page.goto((process.env.CITADELS_URL || 'http://localhost:5173') + '/tools/render-art.html' + (ids ? '?ids=' + encodeURIComponent(ids) : ''));
+  await page.waitForFunction(() => !!window.artwork);
   const images = await page.evaluate(() => window.artwork);
   const dir = new URL('../assets/districts/', import.meta.url);
   await mkdir(dir, { recursive: true });

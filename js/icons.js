@@ -26,6 +26,9 @@ const C = {
 };
 
 const UI = {
+  armory: C.warlord,
+  museum: '<path d="M5 19l19-13 19 13H5zM8 42h32M12 22v16M24 22v16M36 22v16"/>',
+  theater: '<path d="M8 9h32v30H8zM15 9v22l9-9 9 9V9M14 39v5M34 39v5"/>',
   gold: '<circle cx="24" cy="24" r="15"/><circle cx="24" cy="24" r="10"/><path d="M24 18v12M20 22l4-4 4 4"/>',
   card: '<rect x="12" y="8" width="24" height="32" rx="3"/><path d="M18 16h12M18 22h12M18 28h7"/>',
   crown: C.king,

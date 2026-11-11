@@ -3,7 +3,7 @@
 // apply this time (nothing affordable, no active power) are skipped as soon as a later step applies.
 import { t } from './i18n.js';
 import { CHAR } from './data.js';
-import { canPlace, buildCost, countsTowardLimit } from './engine.js';
+import { constructionOptions } from './engine.js';
 
 const KEY = 'c3d.tut';
 const ACTIVE_POWER = ['assassin', 'thief', 'magician', 'warlord', 'wizard', 'seer', 'navigator', 'scholar'];
@@ -11,8 +11,8 @@ const ACTIVE_POWER = ['assassin', 'thief', 'magician', 'warlord', 'wizard', 'see
 const myTurn = v => v.phase === 'turns' && v.turn?.pid === v.me && !v.interrupt;
 const drafting = v => v.phase === 'draft' && v.draft.order[v.draft.idx] === v.me;
 const canBuild = v => {
-  const me = v.players[v.me], T = v.turn;
-  return me.hand.some(c => canPlace(me, c) && buildCost(me, c) <= me.gold && (!countsTowardLimit(T.charId, c) || T.built < T.max));
+  const me = v.players[v.me];
+  return me.hand.some(c => constructionOptions(v, me, c).length > 0);
 };
 
 // target: what to spotlight (null = centred explanation); done: the action that completes the step

@@ -2,7 +2,7 @@
 // Acceptance coverage: spec/tax-collector-and-marshal/corner-cases.md.
 // Future-only characters/cards are deliberately outside this suite's scope.
 import assert from 'node:assert/strict';
-import { createGame, act, actInPlace, viewFor, currentActor, rankOf, score, buildLimit, seizureCost, seizeError, VERSION } from '../js/engine.js';
+import { physicalCards, createGame, act, actInPlace, viewFor, currentActor, rankOf, score, buildLimit, seizureCost, seizeError, VERSION } from '../js/engine.js';
 import { aiAction, safeAction, marshalOptions, SEARCH } from '../js/ai.js';
 import { determinize, search } from '../js/search.js';
 import { CHAR, PRESETS, makeDeck } from '../js/data.js';
@@ -26,8 +26,7 @@ function give(s, pid, id, zone = 'hand', extra = {}) {
   s.players[pid][zone].push(card); return card;
 }
 function conserve(s) {
-  const cards = [...s.deck, ...s.players.flatMap(p => [...p.hand, ...p.city]),
-    ...(s.turn?.pending?.k === 'keep' ? s.turn.pending.cards : []), ...(s.interrupt ? [s.interrupt.card] : [])];
+  const cards = physicalCards(s);
   assert.equal(cards.length, makeDeck().length);
   assert.equal(new Set(cards.map(c => c.uid)).size, cards.length);
   for (const p of s.players) assert.ok(Number.isInteger(p.gold) && p.gold >= 0);
@@ -80,7 +79,7 @@ for (const state of ['absent', 'faceUp', 'faceDown', 'unchosen', 'killed']) {
 }
 {
   const s = fixture(16); give(s, 0, 'factory', 'city');
-  const free = give(s, 0, 'graveyard');
+  const free = give(s, 0, 'haunted_city', 'hand', { cost: 1 });
   let n = move(s, 0, build(free)); assert.equal(n.players[0].gold, 9); assert.equal(n.taxPool, 1);
   // Trader green construction does not use the ordinary limit but still pays tax.
   n.turn.built = n.turn.max;
@@ -168,7 +167,7 @@ for (const reason of ['unsigned', 'duplicate']) {
 for (const id of ['temple', 'church', 'manor', 'keep', 'secret_vault']) {
   const s = fixture(20), card = give(s, 1, id, 'city', { round: -3, attached: { marker: 'retained' } });
   s.players[0].gold = card.cost; s.players[1].gold = 4;
-  give(s, 0, 'factory', 'city'); give(s, 1, 'great_wall', 'city'); give(s, 1, 'graveyard', 'city');
+  give(s, 0, 'factory', 'city'); give(s, 1, 'great_wall', 'city'); give(s, 1, 'poor_house', 'city');
   s.warrants = { pid: 2, targets: [20, 4, 19], signed: 20, revealed: false };
   const original = structuredClone(card), gold = totalGold(s), beforeScore = score(s, s.players[1]).total;
   const n = move(s, 0, { ...seize(s, card), cost: -999, exemption: true });
@@ -300,7 +299,7 @@ for (const killed of [false, true]) {
   const s = fixture(20, { goal: 7 }); s.players[0].gold = 3;
   for (const id of ['temple', 'church', 'tavern', 'market', 'watchtower', 'prison']) give(s, 0, id, 'city');
   const c = give(s, 1, 'manor', 'city');
-  for (const id of ['dragon_gate', 'university', 'library', 'school_of_magic', 'basilica']) give(s, 2, id, 'city');
+  for (const id of ['dragon_gate', 'park', 'library', 'school_of_magic', 'basilica']) give(s, 2, id, 'city');
   assert.ok(marshalOptions(viewFor(s, 0), s.players[0]).every(o => o.utility <= 0));
   assert.equal(aiAction(viewFor(s, 0), 0, { lookahead: false }).t, 'end'); move(s, 0, seize(s, c));
 }

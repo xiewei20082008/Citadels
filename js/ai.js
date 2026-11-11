@@ -12,7 +12,7 @@
 import { CHAR, COLORS, makeDeck } from './data.js';
 import {
   rankOf, has, colorCount, buildCost, canPlace, destroyCost, shielded,
-  targetRanks, countsTowardLimit, score, canConfiscate, taxDue, seizeError, seizureCost, act, threatTargets,
+  targetRanks, score, canConfiscate, taxDue, seizeError, seizureCost, act, threatTargets, completionCount, constructionOptions, constructionPlan, armoryError,
 } from './engine.js';
 import { search } from './search.js';
 
@@ -41,7 +41,7 @@ function sample(entries, temp) { // [[value, utility]] → value, softmax with t
 // Points on the table right now (hidden Secret Vaults excluded for rivals) + tempo.
 function threat(v, p) {
   const s = score(v, p).total - (p.id !== v.me && has(p, 'secret_vault') ? 3 : 0);
-  const left = v.cfg.goal - p.city.length;
+  const left = v.cfg.goal - completionCount(p);
   return s + Math.max(0, 6 - left) * 1.6 + p.gold * 0.25 + (p.handCount ?? p.hand.length) * 0.3;
 }
 
@@ -80,8 +80,8 @@ export function spyRewards(total, matching, hand, gold, deck) {
 }
 
 export function spyOptions(v, me) {
-  const known = new Set([...me.hand.filter(c => !c.hidden), ...v.players.flatMap(p => p.city)].map(c => c.uid));
-  const unseen = makeDeck().filter(c => !known.has(c.uid));
+  const known = new Set([...me.hand.filter(c => !c.hidden), ...v.players.flatMap(p => p.city.flatMap(c => [c, ...(c.stored || []).filter(x => !x.hidden)]))].map(c => c.uid));
+  const unseen = makeDeck(v.cfg.uniqueDistricts).filter(c => !known.has(c.uid));
   return v.players.filter(p => p.id !== me.id).flatMap(target => COLORS.map(color => {
     const reward = spyRewards(unseen.length, unseen.filter(c => c.color === color).length,
       target.handCount ?? target.hand.length, target.gold, v.deckCount);
@@ -106,17 +106,17 @@ function turnValue(v, p, charId) {
   switch (key) {
     case 'magistrate': v0 += 2.5 + (opps.some(q => q.gold >= 4) ? 1 : 0); break;
     case 'blackmailer': v0 += 1 + Math.max(0, ...opps.map(q => Math.floor((q.gold + 1) / 2))) * 0.8; break;
-    case 'assassin': v0 += 1.8 + (Math.max(...opps.map(q => q.city.length)) >= goal - 2 ? 2 : 0); break;
+    case 'assassin': v0 += 1.8 + (Math.max(...opps.map(q => completionCount(q))) >= goal - 2 ? 2 : 0); break;
     case 'thief': v0 += Math.max(0, ...opps.map(q => q.gold)) * 0.45; break;
     case 'spy': v0 += Math.max(0, ...spyOptions(v, p).map(o => o.utility)); break;
     case 'magician': v0 += handN <= 1 ? Math.max(0, ...opps.map(q => (q.handCount ?? q.hand.length))) * 0.7 : 0.8; break;
     case 'emperor': v0 += 0.8 - (v.crown === p.id ? 0.6 : 0); break;
     case 'king': v0 += v.crown !== p.id ? K.kingCrown : K.kingCrown / 2; break;
     case 'patrician': v0 += colorCount(p, 'yellow') * 0.9 + (v.crown !== p.id ? 1 : 0.4); break;
-    case 'bishop': v0 += p.city.length >= goal - 3 ? 2.5 : 0.6; break;
+    case 'bishop': v0 += completionCount(p) >= goal - 3 ? 2.5 : 0.6; break;
     case 'abbot': v0 += 0.8; break;
-    case 'architect': v0 += K.archBase + (handN >= 2 && gold >= 3 ? Math.min(gold, 9) * 0.45 : 0) + (p.city.length >= goal - 3 ? 1.5 : 0); break;
-    case 'warlord': v0 += 0.8 + (Math.max(...opps.map(q => q.city.length)) >= goal - 2 ? 2.5 : 0); break;
+    case 'architect': v0 += K.archBase + (handN >= 2 && gold >= 3 ? Math.min(gold, 9) * 0.45 : 0) + (completionCount(p) >= goal - 3 ? 1.5 : 0); break;
+    case 'warlord': v0 += 0.8 + (Math.max(...opps.map(q => completionCount(q))) >= goal - 2 ? 2.5 : 0); break;
     case 'queen': v0 += 1.5; break;
     case 'tax_collector': {
       // Visible pool plus public construction estimates, discounted for a late,
@@ -143,10 +143,12 @@ export function holdProbs(v, me) {
   const rivals = v.players.filter(q => q.id !== me.id && (q.charCount ?? q.chars.length) > q.chars.length);
   const hiddenHeld = sum(rivals.map(q => (q.charCount ?? q.chars.length) - q.chars.length));
   const unused = Math.max(0, cands.length - hiddenHeld);
-  const saw = me.saw?.[0];
+  const saw = me.draftChanged ? null : me.saw?.[0];
   const order = v.draft.order, myIdx = order.indexOf(me.id), offered = new Set(saw || []);
   const out = new Map();
   for (const c of cands) {
+    const known = me.theaterKnowledge?.find(k => k.charId === c);
+    if (known) { out.set(c, new Map([[known.pid, 1]])); continue; }
     const w = new Map();
     for (const q of rivals) {
       let x = Math.exp(turnValue(v, q, c) / 2.2);
@@ -177,7 +179,7 @@ function bestTarget(v, me, ranks, kind) {
       const q = v.players[pid];
       const lead = Math.max(0, threat(v, q) - mine);
       if (kind === 'kill') {
-        const nearEnd = q.city.length >= v.cfg.goal - 1 ? 3 : q.city.length >= v.cfg.goal - 2 ? 1.2 : 0;
+        const nearEnd = completionCount(q) >= v.cfg.goal - 1 ? 3 : completionCount(q) >= v.cfg.goal - 2 ? 1.2 : 0;
         ev += p * (turnValue(v, q, c) * (r === 4 ? 0.85 : 1) * (1 + lead / TUNE.leadDiv) + nearEnd);
       } else {
         ev += p * (q.gold * (1 + Math.max(0, lead) / 15) + 0.1 * lead);
@@ -194,8 +196,8 @@ function draftUtility(v, me, c) {
   const K = TUNE;
   let u = turnValue(v, me, c);
   const opps = v.players.filter(q => q.id !== me.id);
-  const rivalNear = opps.some(q => q.city.length >= goal - 2);
-  const iNear = me.city.length >= goal - 2;
+  const rivalNear = opps.some(q => completionCount(q) >= goal - 2);
+  const iNear = completionCount(me) >= goal - 2;
   const leading = threat(v, me) >= Math.max(...opps.map(q => threat(v, q)));
   // danger: juicy characters attract the Assassin and Thief if they're still out there
   const killersOut = v.cfg.chars.some(x => rankOf(x) <= 2 && !v.draft.faceUp.includes(x) && !me.chars.includes(x));
@@ -208,51 +210,54 @@ function draftUtility(v, me, c) {
 }
 
 function bestBuild(v, me) {
-  const T = v.turn, goal = v.cfg.goal;
-  const spare = c => me.hand.filter(x => x.uid !== c.uid).sort((a, b) => cardValue(me, a) - cardValue(me, b));
-  const options = me.hand.filter(c => {
-    if (!canPlace(me, c)) return false;
-    if (countsTowardLimit(T.charId, c) && T.built >= T.max) return false;
-    const cost = buildCost(me, c);
-    return cost <= me.gold || (c.id === 'thieves_den' && cost <= me.gold + spare(c).length);
-  });
-  if (!options.length) return null;
-  const have = new Set(me.city.map(d => d.color));
-  const finalRound = v.firstComplete !== null;
-  const w = v.warrants;
-  const warned = w && !T.paidBuild && w.targets.includes(T.charId);
-  const warrantRisk = !warned || w.pid === me.id ? 0 : w.signed !== null ? (w.signed === T.charId ? 1 : 0) : 1 / 3;
-  const util = c => {
-    let u = c.cost + (c.color === 'purple' ? 0.8 : 0);
-    if (!have.has(c.color) && have.size < 5) u += (have.size >= 3 ? 2.5 : 1.2) * TUNE.colorChase; // chase the five-colour bonus
-    if (['dragon_gate', 'university'].includes(c.id)) u += 2;
-    if (c.id === 'thieves_den' && buildCost(me, c) > me.gold) u -= 2;
-    if (finalRound) u += c.cost; // last chance: points now
-    if (warrantRisk && !has(v.players[w.pid], c.id)) {
-      u -= warrantRisk * (u + 1);
-      // Prefer an affordable cheap opening only when a second build remains
-      // possible even if the Magistrate declines and no refund arrives.
-      if (T.max - T.built > 1 && options.some(d => d !== c && buildCost(me, d) + buildCost(me, c) +
-        taxDue(v, me.gold - buildCost(me, c), T.charId) <= me.gold))
-        u += warrantRisk * (7 - buildCost(me, c));
+  const options = me.hand.flatMap(c => constructionOptions(v, me, c));
+  const utility = a => {
+    const card = me.hand.find(c => c.uid === a.uid), plan = constructionPlan(v, me, card, a);
+    const remaining = me.gold - plan.goldDue;
+    const after = { ...me, city: [...me.city.filter(c => c.uid !== plan.sacrifice?.uid), card],
+      gold: remaining - taxDue(v, remaining, v.turn.charId), hand: me.hand.filter(c => c.uid !== card.uid && !plan.pay.includes(c.uid)) };
+    const value = score(v, after).total - score(v, me).total;
+    let u = value + (v.firstComplete === null ? districtValue(v, me, card) : 0) - plan.goldDue * 0.25 - plan.pay.length * 0.45;
+    if (!me.city.some(c => c.color === card.color)) u += TUNE.colorChase * 0.7;
+    if (plan.sacrifice) u -= districtValue(v, me, plan.sacrifice);
+    if (completionCount(after) >= v.cfg.goal && v.firstComplete === null) {
+      const mine = score({ ...v, firstComplete: me.id }, after).total;
+      const rivals = v.players.filter(p => p.id !== me.id);
+      if (!rivals.some(p => completionCount(p) >= v.cfg.goal - 1) && mine < Math.max(...rivals.map(p => score(v, p).total + Math.min(p.gold + 2, 6)))) u -= 20;
+      else u += 4;
     }
+    const w = v.warrants;
+    if (plan.paid && !v.turn.paidBuild && w?.pid !== me.id && w?.targets.includes(v.turn.charId) && !has(v.players[w.pid], card.id))
+      u -= (w.signed === null ? 1 / 3 : Number(w.signed === v.turn.charId)) * (Math.max(0, u) + 2);
     return u;
   };
-  const pick = best(options, util);
-  // Don't trigger the game end while clearly behind — unless a rival is about to end it anyway
-  // (then waiting just hands them the +4). Compare final scores, not "threat" (which adds tempo).
-  if (me.city.length + 1 >= goal && v.firstComplete === null) {
-    const after = { ...me, city: [...me.city, pick], hand: me.hand.filter(c => c.uid !== pick.uid) };
-    const mine = score({ ...v, firstComplete: me.id }, after).total;
-    const rivals = v.players.filter(p => p.id !== me.id);
-    const toAct = p => (p.charCount ?? p.chars.length) > p.chars.length; // still has a turn this round
-    const final = p => score(v, p).total + (toAct(p) ? Math.min(p.gold + 2, 6) : 0);
-    const racing = rivals.some(p => p.city.length >= goal - 1);
-    if (!racing && mine < Math.max(...rivals.map(final))) return null;
+  const pick = best(options, utility);
+  return pick && utility(pick) > 0 ? pick : null;
+}
+
+function districtValue(v, me, card) {
+  const remaining = Math.max(0, 5 - v.round / 2);
+  switch (card.id) {
+    case 'gold_mine': return remaining * 0.7;
+    case 'park': return remaining * (me.hand.length <= 2 ? 0.9 : 0.3);
+    case 'poor_house': return remaining * (me.gold <= 4 ? 0.6 : 0.2);
+    case 'museum': return Math.min(3, me.hand.length * 0.5);
+    case 'framework': return 1.5;
+    case 'stables': return 1.5;
+    case 'monument': return 2;
+    case 'theater': return remaining * 0.3;
+    case 'armory': return 1;
+    default: return card.color === 'purple' ? 0.7 : 0;
   }
-  const cost = buildCost(me, pick);
-  const pay = cost > me.gold ? spare(pick).slice(0, cost - me.gold).map(c => c.uid) : undefined;
-  return { t: 'build', uid: pick.uid, pay };
+}
+
+function theaterChoice(v, me, lookahead) {
+  const i = v.interrupt, pass = { t: 'theater', id: i.id, round: i.round, pass: true };
+  const choices = [pass, ...v.players.filter(p => p.id !== me.id).flatMap(p => me.chars.map(charId =>
+    ({ ...pass, pass: false, target: p.id, charId })))];
+  if (lookahead && SEARCH.on) return search(v, me.id, choices, SEARCH.budget);
+  const weak = worst(me.chars, c => turnValue(v, me, c));
+  return turnValue(v, me, weak) < 5 ? choices.find(a => a.charId === weak) || pass : pass;
 }
 
 function warlordMove(v, me) {
@@ -266,7 +271,7 @@ function warlordMove(v, me) {
       const cost = destroyCost(o, d);
       if (d.id === 'keep' || cost > me.gold) continue;
       const breaksColours = colors.size === 5 && o.city.filter(x => x.color === d.color).length === 1 ? 3 : 0;
-      const nearEnd = o.city.length >= v.cfg.goal - 1 ? 3.5 : 0;
+      const nearEnd = completionCount(o) >= v.cfg.goal - 1 ? 3.5 : 0;
       const damage = (d.cost + breaksColours) * (1 + Math.max(0, lead) / 10) + nearEnd + (lead < -6 ? -3 : 0);
       const value = damage - cost * 0.85 - (me.gold - cost < 2 ? 0.8 : 0);
       if (value > top) { top = value; pick = { t: 'destroy', target: o.id, uid: d.uid }; }
@@ -282,7 +287,7 @@ export function marshalOptions(v, me) {
     const cost = seizureCost(card);
     const after = { ...me, city: [...me.city, card], gold: me.gold - cost };
     const other = { ...target, city: target.city.filter(c => c.uid !== card.uid), gold: target.gold + cost };
-    const completion = v.firstComplete === null && after.city.length >= v.cfg.goal;
+    const completion = v.firstComplete === null && completionCount(after) >= v.cfg.goal;
     const next = { ...v, firstComplete: completion ? me.id : v.firstComplete };
     let utility = score(next, after).total - before + (score(v, target).total - score(next, other).total) * 0.65 - cost * 0.8 - cost * 0.3;
     if (completion && v.players.some(p => p.id !== me.id && score(next, p.id === target.id ? other : p).total > score(next, after).total)) utility = -100;
@@ -326,6 +331,7 @@ function marshalMove(v, me, lookahead) {
 export function aiAction(v, pid, { lookahead = true } = {}) {
   const me = v.players[pid];
 
+  if (v.interrupt?.k === 'theater') return theaterChoice(v, me, lookahead);
   if (v.interrupt?.k === 'emperorAdvisor') return emperorChoice(v, pid, lookahead);
   if (v.interrupt) { // Graveyard: buy the ruin back?
     if (v.interrupt.k === 'threatResponse' || v.interrupt.k === 'threatReveal') return threatDecision(v, me, lookahead);
@@ -354,9 +360,13 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
     return { t: 'keep', uids: sorted.slice(0, P.n).map(c => c.uid) };
   }
   if (P?.k === 'wizard') {
-    const can = P.cards.filter(c => buildCost(me, c) <= me.gold);
-    const take = best(can, c => c.cost) || best(P.cards, c => cardValue(me, c));
-    return { t: 'wizTake', uid: take.uid, build: can.includes(take) && take.cost >= 3 };
+    const options = P.cards.flatMap(c => constructionOptions(v, me, c, true));
+    const utility = a => {
+      const card = P.cards.find(c => c.uid === a.uid), plan = constructionPlan(v, me, card, a, true);
+      return card.cost - (plan.sacrifice?.cost || 0) + districtValue(v, me, card) - plan.goldDue * 0.3 - plan.pay.length * 0.5;
+    };
+    const build = best(options, utility);
+    return build && utility(build) >= 2 ? build : { t: 'wizTake', uid: best(P.cards, c => cardValue(me, c)).uid, build: false };
   }
   if (P?.k === 'seerGive') {
     const sorted = [...me.hand].sort((a, b) => cardValue(me, a) - cardValue(me, b));
@@ -408,7 +418,7 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
   if (!T.income) {
     const good = buildable(me).filter(c => cardValue(me, c) > 0.5);
     const cheapest = Math.min(...good.map(c => buildCost(me, c)), 99);
-    const needed = v.cfg.goal - me.city.length;
+    const needed = v.cfg.goal - completionCount(me);
     const willBuild = T.max > 0;
     let draw = good.length === 0 || (good.length < Math.min(2 + TUNE.drawBias, needed) && me.gold >= cheapest + 1);
     if (!willBuild && good.length >= 2) draw = false;
@@ -423,7 +433,10 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
     if (cardValue(me, j) < 1) return { t: 'lab', uid: j.uid };
   }
 
-  if (T.charId === 20 && !T.used.ability) return marshalMove(v, me, lookahead);
+  if (T.charId === 20 && !T.used.ability) {
+    const move = marshalMove(v, me, lookahead);
+    if (move.t !== 'end') return move;
+  }
   const b = bestBuild(v, me);
   if (b) return b;
 
@@ -431,11 +444,24 @@ export function aiAction(v, pid, { lookahead = true } = {}) {
     const w = warlordMove(v, me);
     if (w) return w;
   }
+  for (const armory of me.city.filter(c => c.id === 'armory')) {
+    const targets = opps.flatMap(target => target.city.filter(card => !armoryError(v, me, armory, target, card)).map(card => ({ target, card })));
+    const pick = best(targets, x => x.card.cost + (x.card.stored || []).length + (completionCount(x.target) >= v.cfg.goal - 1 ? 3 : 0));
+    if (pick && pick.card.cost + (pick.card.stored || []).length >= 4)
+      return { t: 'armory', armory: armory.uid, target: pick.target.id, uid: pick.card.uid };
+  }
+  const museum = me.city.find(c => c.id === 'museum' && !T.used['museum:' + c.uid]);
+  if (museum && me.hand.length) {
+    const card = worst(me.hand, c => cardValue(me, c));
+    if (v.firstComplete !== null || cardValue(me, card) < 2 || (has(me, 'park') && me.hand.length === 1))
+      return { t: 'museum', museum: museum.uid, uid: card.uid };
+  }
   return { t: 'end' };
 }
 
 // Fallback when an AI choice turns out illegal: always make progress.
 export function safeAction(v, pid) {
+  if (v.interrupt?.k === 'theater') return { t: 'theater', id: v.interrupt.id, round: v.interrupt.round, pass: true };
   if (v.interrupt?.k === 'emperorAdvisor') return emperorChoice(v, pid);
   if (v.interrupt?.k === 'threatResponse') return threatReply(v, { bribe: true });
   if (v.interrupt?.k === 'threatReveal') return threatReply(v, { reveal: false });
@@ -487,7 +513,7 @@ function threatenedResources(v, me, lookahead) {
   const income = CHAR[v.turn.charId].income ? colorCount(me, CHAR[v.turn.charId].income) + (v.turn.charId === 6 ? 1 : 0) : 0;
   const value = gold => remaining(gold) * 0.8 + Math.max(0, ...me.hand.filter(c => canPlace(me, c) && buildCost(me, c) <= remaining(gold) + income).map(c => c.cost * 0.6));
   const drawValue = has(me, 'library') ? (has(me, 'observatory') ? 3 : 2) : has(me, 'observatory') ? 1.4 : 1.1;
-  return v.deckCount && value(me.gold) + drawValue > value(me.gold + 2) ? { t: 'draw' } : { t: 'gold' };
+  return v.deckCount && value(me.gold) + drawValue > value(me.gold + 2 + Number(has(me, 'gold_mine'))) ? { t: 'draw' } : { t: 'gold' };
 }
 
 function assignThreats(v, me) {
@@ -502,7 +528,7 @@ function assignThreats(v, me) {
         const p = v.players[pid];
         const weight = 1 + Math.min(0.25, Math.max(0, threat(v, p) - threat(v, me)) / 100);
         // Mix resource outcomes before rounding, excluding later character income.
-        for (const [extra, probability] of [[0, 0.4], [2, 0.6]]) {
+        for (const [extra, probability] of [[0, 0.4], [2 + Number(has(p, 'gold_mine')), 0.6]]) {
           const gold = p.gold + extra, payment = Math.floor(gold / 2);
           const payChance = payment === 0 ? 1 : 0.6;
           bribe += chance * probability * weight * payChance * payment;
@@ -535,7 +561,7 @@ function assignWarrants(v, me) {
         const gold = p.gold + 2 + income;
         const draws = ['architect', 'scholar', 'wizard', 'seer', 'patrician'].includes(c.key);
         const hand = p.handCount ?? p.hand.length;
-        const buildingChance = Math.min(0.95, (hand || draws ? 0.65 + hand * 0.06 : 0.15) + (p.city.length >= v.cfg.goal - 2 ? 0.08 : 0));
+        const buildingChance = Math.min(0.95, (hand || draws ? 0.65 + hand * 0.06 : 0.15) + (completionCount(p) >= v.cfg.goal - 2 ? 0.08 : 0));
         const expected = Math.max(1, Math.min(5, gold, 2 + hand * 0.4));
         const duplicateRisk = Math.min(0.6, me.city.length * 0.04);
         value += chance * buildingChance * expected * (1 - duplicateRisk);
@@ -554,14 +580,14 @@ function warrantResponse(v, me) {
   if (take) {
     const card = { ...i.card, round: v.round };
     const after = { ...me, city: [...me.city, card], gold: me.gold + (i.builder === me.id ? i.goldPaid : 0) };
-    const completion = v.firstComplete === null && after.city.length >= v.cfg.goal;
+    const completion = v.firstComplete === null && completionCount(after) >= v.cfg.goal;
     const next = { ...v, firstComplete: completion ? me.id : v.firstComplete };
     // Taking a second unique district can forfeit Ivory Tower's five points.
     take = score(next, after).total >= score(v, me).total;
     if (take && completion) {
       const rivals = v.players.filter(p => p.id !== me.id);
       const mine = score(next, after).total;
-      const racing = rivals.some(p => p.city.length >= v.cfg.goal - 1);
+      const racing = rivals.some(p => completionCount(p) >= v.cfg.goal - 1);
       if (!racing && rivals.some(p => score(next, p).total > mine)) take = false;
     }
   }
@@ -574,8 +600,8 @@ function emperorChoice(v, pid, lookahead = false) {
   const final = v.firstComplete !== null || v.round >= 40;
   const actions = [];
   const crownValues = new Map();
-  const visible = new Set([...me.hand, ...v.players.flatMap(p => p.city)].map(c => c.uid));
-  const unseen = makeDeck().filter(c => !visible.has(c.uid));
+  const visible = new Set([...me.hand, ...v.players.flatMap(p => p.city.flatMap(c => [c, ...(c.stored || []).filter(x => !x.hidden)]))].map(c => c.uid));
+  const unseen = makeDeck(v.cfg.uniqueDistricts).filter(c => !visible.has(c.uid));
   const expectedCard = unseen.length ? unseen.reduce((sum, c) => sum + cardValue(me, c), 0) / unseen.length : 0;
   let chosen, top = -Infinity;
   for (const q of v.players) {

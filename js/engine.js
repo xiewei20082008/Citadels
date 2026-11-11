@@ -5,7 +5,7 @@
 import { CHAR, COLORS, makeDeck } from './data.js';
 
 const MAX_EV = 120;
-export const VERSION = 7; // Emperor assignment and round-end advisor continuation
+export const VERSION = 8; // Revised catalogue UIDs, Museum storage and Theater decisions
 const MAX_ROUNDS = 40; // ponytail: hard stop for degenerate games (empty deck + empty hands)
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -30,6 +30,12 @@ const bump = (p, k, n = 1) => { p.st ||= {}; p.st[k] = (p.st[k] || 0) + n; };
 export const rankOf = id => CHAR[id].rank;
 export const charsPerPlayer = n => (n <= 3 ? 2 : 1);
 export const has = (p, id) => p.city.some(d => d.id === id);
+export const completionCount = p => p.city.reduce((n, d) => n + (d.id === 'monument' ? 2 : 1), 0);
+// Physical zones only: Wizard/Spy inspections are knowledge copies.
+export const physicalCards = s => [...s.deck,
+  ...s.players.flatMap(p => [...p.hand, ...p.city.flatMap(c => [c, ...(c.stored || [])])]),
+  ...(s.turn?.pending?.k === 'keep' ? s.turn.pending.cards : []),
+  ...(s.interrupt?.card ? [s.interrupt.card, ...(s.interrupt.card.stored || [])] : [])];
 export const maxRank = s => Math.max(...s.cfg.chars.map(rankOf));
 export const holderOf = (s, rank) => s.players.find(p => p.chars.some(c => rankOf(c) === rank));
 
@@ -56,7 +62,7 @@ export function seizeError(s, marshal, target, card) {
 }
 // Can the current Warlord touch this player's city at all?
 export function shielded(s, target) {
-  if (target.city.length >= s.cfg.goal) return 'complete';
+  if (completionCount(target) >= s.cfg.goal) return 'complete';
   if (target.chars.includes(5) && s.killed !== 5) return 'bishop'; // the Bishop only, not the Abbot
   return null;
 }
@@ -64,8 +70,68 @@ export function buildLimit(charId) {
   return { 7: 3, 14: 2, 15: 2, 10: 0 }[charId] ?? 1;
 }
 export function countsTowardLimit(charId, card) {
-  return !(charId === 16 && card.color === 'green');
+  return card.id !== 'stables' && !(charId === 16 && card.color === 'green');
 }
+
+// A single construction validator for humans, policies and the Wizard's bonus build.
+// Eligibility is evaluated after an optional sacrifice; Monument's placement
+// restriction uses the city before construction, including the sacrificed card.
+export function constructionPlan(s, p, card, a = {}, wizard = false) {
+  const T = s.turn;
+  if (!card || !T || T.charId === 10) return { error: 'cannot build' };
+  if (card.id === 'monument' && p.city.length >= 5) return { error: 'monument limit' };
+  if (!wizard && countsTowardLimit(T.charId, card) && T.built >= T.max) return { error: 'build limit' };
+  if (a.payment !== undefined && !['gold', 'framework', 'necropolis'].includes(a.payment)) return { error: 'bad payment mode' };
+  if (a.pay !== undefined && (!Array.isArray(a.pay) || new Set(a.pay).size !== a.pay.length)) return { error: 'bad payment' };
+  const pay = a.pay || [], alternative = a.payment === 'framework' || a.payment === 'necropolis';
+  if ((!alternative && a.sacrifice !== undefined) || (alternative && pay.length)) return { error: 'mixed payment' };
+  let sacrifice = null;
+  if (alternative) {
+    sacrifice = p.city.find(c => c.uid === a.sacrifice);
+    if (!sacrifice || (a.payment === 'framework' ? sacrifice.id !== 'framework' : card.id !== 'necropolis'))
+      return { error: 'bad sacrifice' };
+  }
+  const after = sacrifice ? { ...p, city: p.city.filter(c => c.uid !== sacrifice.uid) } : p;
+  if (!wizard && !canPlace(after, card)) return { error: 'duplicate' };
+  const cost = buildCost(after, card);
+  if (pay.length && card.id !== 'thieves_den') return { error: 'only Thieves\' Den takes cards' };
+  if (pay.includes(card.uid) || !pay.every(u => p.hand.some(c => c.uid === u))) return { error: 'bad payment' };
+  const goldDue = alternative ? 0 : cost - pay.length;
+  if (goldDue < 0 || goldDue > p.gold) return { error: 'cannot afford' };
+  return { sacrifice, pay, goldDue, paid: !alternative };
+}
+
+export function constructionOptions(s, p, card, wizard = false) {
+  const base = wizard ? { t: 'wizTake', uid: card.uid, build: true } : { t: 'build', uid: card.uid };
+  const actions = [{ ...base, payment: 'gold' }];
+  if (card.id === 'thieves_den') {
+    const need = Math.max(0, buildCost(p, card) - p.gold);
+    if (need) actions.push({ ...base, pay: p.hand.filter(c => c.uid !== card.uid).slice(0, need).map(c => c.uid) });
+  }
+  for (const c of p.city) {
+    if (c.id === 'framework') actions.push({ ...base, payment: 'framework', sacrifice: c.uid });
+    if (card.id === 'necropolis') actions.push({ ...base, payment: 'necropolis', sacrifice: c.uid });
+  }
+  return actions.filter(a => !constructionPlan(s, p, card, a, wizard).error);
+}
+
+export function armoryError(s, p, armory, target, card) {
+  if (!armory || armory.id !== 'armory' || !p.city.some(c => c.uid === armory.uid) ||
+      !target || !card || !target.city.some(c => c.uid === card.uid) || card.uid === armory.uid) return 'bad target';
+  // This is not a rank-8 ability: Bishop, Keep and Great Wall do not apply.
+  return completionCount(p) >= s.cfg.goal || completionCount(target) >= s.cfg.goal ? 'complete' : null;
+}
+
+function discardDistrict(s, p, card) {
+  p.city.splice(p.city.findIndex(c => c.uid === card.uid), 1);
+  const stored = card.stored || [];
+  delete card.stored;
+  for (const c of stored) delete c.knownTo;
+  s.deck.push(card, ...stored);
+}
+
+// Public events must never contain facedown Museum cards.
+const publicCard = card => { const c = { ...card }; if (c.stored) c.stored = c.stored.map(() => ({ hidden: true })); return c; };
 
 // ── setup ──────────────────────────────────────────────────────────────────
 // cfg: { players:[{name, ai, avatar}], chars:[charIds], goal:7|8, seed? }
@@ -80,7 +146,8 @@ export function createGame(cfg) {
 
   const s = {
     v: VERSION, seed: cfg.seed ?? (Math.random() * 2 ** 31) | 0,
-    cfg: { chars: [...cfg.chars], goal: cfg.goal || 8, level: 'hard' },
+    cfg: { chars: [...cfg.chars], goal: cfg.goal || 8, level: 'hard',
+      uniqueDistricts: cfg.uniqueDistricts ? [...cfg.uniqueDistricts] : null },
     players: cfg.players.map((p, i) => ({
       id: i, name: p.name, ai: !!p.ai, avatar: p.avatar || '',
       gold: 2, hand: [], city: [], chars: [], lastRank: 0, saw: [],
@@ -90,7 +157,7 @@ export function createGame(cfg) {
     firstComplete: null, scores: null, winner: null, ev: [], evSeq: 0,
     warrants: null, constructionSeq: 0, taxPool: 0, threats: null, threatSeq: 0,
   };
-  s.deck = shuffle(s, makeDeck());
+  s.deck = shuffle(s, makeDeck(s.cfg.uniqueDistricts));
   s.players.forEach(p => { p.hand = draw(s, 4); });
   s.crown = Math.floor(rand(s) * n);
   emit(s, 'start', {});
@@ -105,7 +172,7 @@ function startRound(s) {
   s.interrupt = null;
   s.phase = 'draft';
   s.turn = null; s.call = 0; s.killed = null; s.robbed = null; s.robber = null; s.revealed = [];
-  s.players.forEach(p => { p.chars = []; p.saw = []; p.lastRank = 0; });
+  s.players.forEach(p => { p.chars = []; p.saw = []; p.lastRank = 0; delete p.draftChanged; delete p.theaterKnowledge; });
   const n = s.players.length, per = charsPerPlayer(n);
   const pool = shuffle(s, [...s.cfg.chars]);
   const faceDown = [pool.pop()];
@@ -243,7 +310,7 @@ function threatTransfer(s, from, to, n, bribe) {
 }
 
 function checkComplete(s, p) {
-  if (p.city.length >= s.cfg.goal && s.firstComplete === null) {
+  if (completionCount(p) >= s.cfg.goal && s.firstComplete === null) {
     s.firstComplete = p.id;
     emit(s, 'complete', { pid: p.id });
   }
@@ -253,7 +320,7 @@ function place(s, p, card) {
   card.round = s.round;
   bump(p, 'built');
   p.city.push(card);
-  emit(s, 'build', { pid: p.id, card });
+  emit(s, 'build', { pid: p.id, card: publicCard(card) });
   checkComplete(s, p);
 }
 
@@ -327,7 +394,7 @@ export function score(s, p) {
   const city = p.city, purple = city.filter(d => d.color === 'purple');
   const parts = { base: city.reduce((t, d) => t + d.cost, 0), first: 0, complete: 0, colors: 0, extra: 0 };
   if (s.firstComplete === p.id) parts.first = 4;
-  else if (city.length >= s.cfg.goal) parts.complete = 2;
+  else if (completionCount(p) >= s.cfg.goal) parts.complete = 2;
   // School of Magic is always wild; the Haunted Quarter only if it wasn't built in the final round.
   const wild = d => d.id === 'school_of_magic' || (d.id === 'haunted_city' && d.round !== s.round);
   const flex = city.filter(wild).length;
@@ -343,6 +410,9 @@ export function score(s, p) {
     if (d.id === 'capitol' && Object.values(counts).some(v => v >= 3)) parts.extra += 3;
     if (d.id === 'ivory_tower' && purple.length === 1) parts.extra += 5;
     if (d.id === 'secret_vault') parts.extra += 3;
+    if (d.id === 'imperial_treasury') parts.extra += p.gold;
+    if (d.id === 'statue' && s.crown === p.id) parts.extra += 5;
+    if (d.id === 'museum') parts.extra += (d.stored || []).length;
   }
   return { pid: p.id, parts, total: Object.values(parts).reduce((a, b) => a + b, 0) };
 }
@@ -376,7 +446,12 @@ export function actInPlace(s, pid, a) {
 
 function endDraftStep(s, d) {
   d.idx++;
-  if (d.idx >= d.order.length) { s.phase = 'turns'; d.faceDown.push(...d.avail); d.avail = []; nextCall(s); }
+  if (d.idx >= d.order.length) {
+    s.phase = 'turns'; d.faceDown.push(...d.avail); d.avail = [];
+    const owner = s.players.find(p => has(p, 'theater'));
+    if (owner) s.interrupt = { k: 'theater', pid: owner.id, round: s.round, id: ++s.constructionSeq };
+    else nextCall(s);
+  }
 }
 
 function actInner(state, pid, a, inPlace = false) {
@@ -386,6 +461,26 @@ function actInner(state, pid, a, inPlace = false) {
 
   if (s.interrupt) { // someone else's decision pauses the active character
     const I = s.interrupt;
+    if (I.k === 'theater') {
+      if (pid !== I.pid || a.t !== 'theater' || a.id !== I.id || a.round !== I.round ||
+          s.phase !== 'turns' || s.turn || s.call !== 0 || typeof a.pass !== 'boolean') return fail('invalid theater response');
+      if (!a.pass) {
+        const target = Number.isInteger(a.target) && s.players[a.target];
+        if (!target || target.id === pid || !target.chars.length || !p.chars.includes(a.charId) || 'incoming' in a)
+          return fail('bad theater exchange');
+        const idx = Math.floor(rand(s) * target.chars.length), outgoing = p.chars.indexOf(a.charId);
+        const incoming = target.chars[idx];
+        [p.chars[outgoing], target.chars[idx]] = [target.chars[idx], p.chars[outgoing]];
+        p.theaterKnowledge = [{ pid: target.id, charId: a.charId }];
+        target.theaterKnowledge = [{ pid, charId: incoming }];
+        // Draft observations no longer imply ownership after an exchange.
+        s.players.forEach(q => { q.draftChanged = true; });
+        emit(s, 'theater', { pid, target: target.id });
+      }
+      s.interrupt = null;
+      nextCall(s);
+      return s;
+    }
     if (I.k === 'emperorAdvisor') {
       if (pid !== I.pid || a.t !== I.k || a.id !== I.id || a.round !== I.round ||
           a.charId !== I.charId || s.round !== I.round || s.phase !== 'turns' || s.turn ||
@@ -546,8 +641,9 @@ function actInner(state, pid, a, inPlace = false) {
       p.gold -= cost; target.gold += cost;
       target.city.splice(target.city.findIndex(c => c.uid === card.uid), 1);
       p.city.push(card);
+      for (const c of card.stored || []) c.knownTo = [...new Set([...(c.knownTo || []), pid])];
       bump(p, 'seized'); bump(target, 'seizedFrom');
-      emit(s, 'seize', { pid, target: target.id, card, cost });
+      emit(s, 'seize', { pid, target: target.id, card: publicCard(card), cost });
       checkComplete(s, p);
       return s;
     }
@@ -581,7 +677,7 @@ function actInner(state, pid, a, inPlace = false) {
     case 'gold':
       if ((err = needFree()) || (T.income && (err = 'income taken'))) return fail(err);
       T.income = true;
-      gain(s, p, 2, 'take');
+      gain(s, p, 2 + Number(has(p, 'gold_mine')), 'take');
       advanceThreat(s);
       return s;
 
@@ -616,20 +712,18 @@ function actInner(state, pid, a, inPlace = false) {
       if (!T.income) return fail('take income first');
       const card = p.hand.find(c => c.uid === a.uid);
       if (!card) return fail('not in hand');
-      const counts = countsTowardLimit(cid, card);
-      if (counts && T.built >= T.max) return fail('build limit');
-      if (!canPlace(p, card)) return fail('duplicate');
-      const cost = buildCost(p, card);
-      const pay = [...new Set(a.pay || [])];
-      if (pay.length && card.id !== 'thieves_den') return fail('only Thieves\' Den takes cards');
-      if (pay.includes(card.uid) || !pay.every(u => p.hand.some(c => c.uid === u))) return fail('bad payment');
-      const goldDue = cost - pay.length;
-      if (goldDue < 0 || goldDue > p.gold) return fail('cannot afford');
+      const plan = constructionPlan(s, p, card, a);
+      if (plan.error) return fail(plan.error);
+      const { pay, goldDue, sacrifice, paid } = plan;
+      if (sacrifice) {
+        discardDistrict(s, p, sacrifice);
+        emit(s, 'sacrifice', { pid, card: publicCard(sacrifice) });
+      }
       takeFromHand(card.uid);
       s.deck.push(...pay.map(takeFromHand));
       p.gold -= goldDue;
-      if (counts) T.built++;
-      construct(s, p, card, goldDue);
+      if (countsTowardLimit(cid, card)) T.built++;
+      construct(s, p, card, goldDue, paid);
       return s;
     }
 
@@ -676,12 +770,11 @@ function actInner(state, pid, a, inPlace = false) {
       T.used.ability = true;
       const cost = destroyCost(o, card);
       p.gold -= cost;
-      o.city = o.city.filter(c => c.uid !== card.uid);
       if (o.id !== pid) { bump(p, 'razed'); bump(o, 'lost'); }
-      emit(s, 'destroy', { pid, target: o.id, card, cost });
+      emit(s, 'destroy', { pid, target: o.id, card: publicCard(card), cost });
       if (o.id !== pid && card.id !== 'graveyard' && has(o, 'graveyard') && o.gold >= 1)
-        s.interrupt = { k: 'graveyard', pid: o.id, card }; // the owner decides whether to pay 1
-      else s.deck.push(card);
+        { o.city = o.city.filter(c => c.uid !== card.uid); s.interrupt = { k: 'graveyard', pid: o.id, card }; }
+      else discardDistrict(s, o, card);
       return s;
     }
 
@@ -700,11 +793,17 @@ function actInner(state, pid, a, inPlace = false) {
       if (!card) return fail('bad card');
       // The Wizard's direct build permits duplicates; that permission belongs
       // to the builder, never to a Magistrate who confiscates the district.
-      if (a.build && buildCost(p, card) > p.gold) return fail('cannot build');
+      const plan = a.build ? constructionPlan(s, p, card, a, true) : null;
+      if (plan?.error) return fail(plan.error);
       o.hand = o.hand.filter(c => c.uid !== card.uid);
       T.pending = null;
       emit(s, 'wizTake', { pid, target: o.id });
-      if (a.build) { const cost = buildCost(p, card); p.gold -= cost; construct(s, p, card, cost); } // paid bonus build, exempt from limit
+      if (a.build) {
+        if (plan.sacrifice) { discardDistrict(s, p, plan.sacrifice); emit(s, 'sacrifice', { pid, card: publicCard(plan.sacrifice) }); }
+        s.deck.push(...plan.pay.map(takeFromHand));
+        p.gold -= plan.goldDue;
+        construct(s, p, card, plan.goldDue, plan.paid);
+      } // bonus build, exempt from limit
       else p.hand.push(card);
       return s;
     }
@@ -745,6 +844,30 @@ function actInner(state, pid, a, inPlace = false) {
       return s;
     }
 
+    case 'armory': {
+      if ((err = needFree())) return fail(err);
+      const armory = p.city.find(c => c.uid === a.armory), target = Number.isInteger(a.target) && s.players[a.target];
+      const card = target && target.city.find(c => c.uid === a.uid);
+      if ((err = armoryError(s, p, armory, target, card))) return fail(err);
+      emit(s, 'destroy', { pid, target: target.id, card: publicCard(card), cost: 0 });
+      emit(s, 'sacrifice', { pid, card: publicCard(armory) });
+      discardDistrict(s, target, card);
+      discardDistrict(s, p, armory);
+      if (target.id !== pid) { bump(p, 'razed'); bump(target, 'lost'); }
+      return s;
+    }
+    case 'museum': {
+      if ((err = needFree())) return fail(err);
+      const museum = p.city.find(c => c.uid === a.museum && c.id === 'museum');
+      const card = p.hand.find(c => c.uid === a.uid);
+      if (!museum || !card || T.used['museum:' + museum.uid]) return fail('invalid museum storage');
+      T.used['museum:' + museum.uid] = true;
+      takeFromHand(card.uid);
+      card.knownTo = [pid];
+      (museum.stored ||= []).push(card);
+      emit(s, 'museum', { pid });
+      return s;
+    }
     case 'smithy':
       if ((err = needFree()) || (!has(p, 'smithy') && (err = 'no smithy')) || (T.used.smithy && (err = 'used')) ||
         (p.gold < 2 && (err = 'cannot afford'))) return fail(err);
@@ -767,6 +890,11 @@ function actInner(state, pid, a, inPlace = false) {
       if ((err = needFree())) return fail(err);
       if (cid === 22 && !T.used.ability) return fail('assign the crown first');
       if (!T.income) return fail('take income first');
+      if (has(p, 'park') && !p.hand.length) {
+        const cards = draw(s, 2); p.hand.push(...cards);
+        if (cards.length) emit(s, 'cards', { pid, n: cards.length, why: 'park' });
+      }
+      if (has(p, 'poor_house') && p.gold === 0) gain(s, p, 1, 'poor_house');
       emit(s, 'end', { pid });
       s.turn = null;
       nextCall(s);
@@ -796,15 +924,21 @@ export function viewFor(s, pid) {
   v.deck = [];
   v.me = pid;
   for (const q of v.players) {
+    for (const card of q.city) if (card.stored) card.stored = card.stored.map((c, i) => {
+      if (over || q.id === pid || c.knownTo?.includes(pid)) { const copy = { ...c }; delete copy.knownTo; return copy; }
+      return { uid: 'stored:' + card.uid + ':' + i, hidden: true };
+    });
     q.handCount = q.hand.length;
     q.charCount = q.chars.length;
     if (q.id !== pid && !over) {
       q.saw = [];
+      delete q.theaterKnowledge;
       q.hand = q.hand.map((_, i) => ({ uid: 'h' + q.id + '_' + i, hidden: true }));
       q.chars = q.chars.filter(c => s.revealed.includes(c));
     }
   }
   if (v.draft) {
+    delete v.draft.options;
     v.draft.availCount = s.draft.avail.length;
     v.draft.faceDown = s.draft.faceDown.map(() => 0);
     if (s.phase !== 'draft' || s.draft.order[s.draft.idx] !== pid) v.draft.avail = [];

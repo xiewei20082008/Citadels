@@ -4,11 +4,10 @@
 // everyone, and keep the option that leaves us furthest ahead. Common random numbers: each
 // sample is shared by all options, so they're compared on identical "worlds".
 
-import { act, actInPlace, currentActor, draftOptions, score, viewFor } from './engine.js';
+import { act, currentActor, draftOptions, score, viewFor, completionCount } from './engine.js';
 import { aiAction, safeAction, holdProbs } from './ai.js';
 import { makeDeck } from './data.js';
 
-const ALL = makeDeck();
 const SOFT = 0.35; // softmax temperature (points): near-ties vary, clear wins don't. 0.6 cost ~4% win rate.
 
 function shuffle(a) {
@@ -38,11 +37,14 @@ export function determinize(v, me) {
   s.seed = (Math.random() * 2 ** 31) | 0;
   const known = new Set();
   const mark = cards => cards.forEach(c => !c.hidden && known.add(c.uid));
-  s.players.forEach(p => { mark(p.city); if (p.id === me) mark(p.hand); });
+  s.players.forEach(p => { mark(p.city); p.city.forEach(c => mark(c.stored || [])); if (p.id === me) mark(p.hand); });
   if (s.turn?.pending?.cards) mark(s.turn.pending.cards);
   if (s.turn?.spyPeek?.cards) mark(s.turn.spyPeek.cards);
   if (s.interrupt?.card) known.add(s.interrupt.card.uid);
-  const pool = shuffle(ALL.filter(c => !known.has(c.uid)).map(c => ({ ...c })));
+  const pool = shuffle(makeDeck(v.cfg.uniqueDistricts).filter(c => !known.has(c.uid)));
+  for (const p of s.players) for (const museum of p.city) if (museum.stored) {
+    museum.stored = museum.stored.map(c => c.hidden ? { ...pool.shift(), knownTo: [p.id] } : { ...c, knownTo: [p.id, me] });
+  }
   for (const p of s.players) if (p.id !== me) {
     // A Wizard peek is a copy of the target's hand, not a separate card zone.
     // Keep those known cards in that hand so wizTake remains playable.
@@ -69,21 +71,28 @@ export function determinize(v, me) {
     // whatever's left is face down — including a face-down card we're allowed to take (7 players)
     d.faceDown = [...(d.options || []).filter(c => !d.avail.includes(c)), ...missing];
   } else if (s.phase === 'turns') {
+    // The two participants remember the role they gave away. Reserve it before
+    // sampling other hidden roles so a known exchange cannot be contradicted.
+    for (const k of mine.theaterKnowledge || []) {
+      const target = s.players[k.pid];
+      if (!target.chars.includes(k.charId) && !s.revealed.includes(k.charId)) target.chars.push(k.charId);
+    }
     const probs = holdProbs(v, mine);
-    const open = [...probs.keys()];
+    const assigned = new Set(s.players.flatMap(p => p.chars));
+    const open = [...probs.keys()].filter(c => !assigned.has(c));
     for (const p of shuffle(s.players.filter(q => q.id !== me))) {
       const need = (p.charCount ?? p.chars.length) - p.chars.length;
       for (let k = 0; k < need && open.length; k++)
         p.chars.push(weightedTake(open, c => (probs.get(c)?.get(p.id) ?? 0) + 0.02));
     }
   }
-  s.players.forEach(p => { delete p.handCount; delete p.charCount; if (p.id !== me) p.saw = []; });
+  s.players.forEach(p => { delete p.handCount; delete p.charCount; if (p.id !== me) { p.saw = []; delete p.theaterKnowledge; } });
   delete s.deckCount; delete s.me;
   return s;
 }
 
-// Mutate the sampled world in place, but give each policy its own permitted view.
-// In particular, simulated opponents cannot see the signed warrant.
+// Each policy receives its own permitted view. Rejected actions discard their
+// transactional copy, so fallback never continues a half-mutated simulation.
 function playOutRound(s) {
   const round = s.round;
   for (let k = 0; k < 400 && s.phase !== 'over' && s.round === round; k++) {
@@ -95,15 +104,16 @@ function playOutRound(s) {
     const policyView = viewFor(s, pid);
     if (s.phase === 'draft') policyView.draft.options = draftOptions(s);
     try { a = aiAction(policyView, pid, { lookahead: false }); } catch { /* fall back below */ }
-    let r = a ? actInPlace(s, pid, a) : { error: 1 };
-    if (r.error) { r = actInPlace(s, pid, safeAction(policyView, pid)); if (r.error) break; }
+    let r = a ? act(s, pid, a) : { error: 1 };
+    if (r.error) { r = act(s, pid, safeAction(policyView, pid)); if (r.error) break; }
+    s = r;
   }
   return s;
 }
 
 // Position value: points banked, plus resources that turn into points soon.
 function standing(s, p) {
-  const left = s.cfg.goal - p.city.length;
+  const left = Math.max(0, s.cfg.goal - completionCount(p));
   return score(s, p).total + p.gold * 0.5 + Math.min(p.hand.length, left) * 0.45 + (s.phase !== 'over' && s.firstComplete === null && s.round < 40 && s.crown === p.id ? 0.6 : 0);
 }
 function outcome(s, me) {

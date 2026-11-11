@@ -966,3 +966,8 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
 .emperor-choices b { display: block; overflow-wrap: anywhere; margin-bottom: 4px; }
 .emperor-choices .seg { display: flex; flex-direction: column; }
 .emperor-choices .btn { justify-content: center; }
+
+/* District decisions share a compact wrapping layout, including narrow phones. */
+.sh-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.sh-actions .btn { flex: 1 1 42%; min-width: 0; white-space: normal; overflow-wrap: anywhere; justify-content: center; }
+.cards-pick > div { min-width: 0; }

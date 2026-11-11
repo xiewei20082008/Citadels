@@ -3,7 +3,7 @@
 
 import { CHAR, HUE, DIST, COLORS, SEAT_HUES } from './data.js';
 import {
-  rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost, threatTargets,
+  rankOf, has, buildCost, canPlace, destroyCost, shielded, targetRanks, countsTowardLimit, score, colorCount, buildLimit, canConfiscate, seizeError, seizureCost, threatTargets, completionCount, constructionOptions, constructionPlan, armoryError,
 } from './engine.js';
 import { t, cname, cabil, dname, ddesc, RULES, getLang } from './i18n.js';
 import { svg, ROMAN } from './icons.js';
@@ -18,8 +18,8 @@ const ABILITY_ICON = { emperor: 'emperor', threats: 'blackmailer', tax: 'tax_col
 const ABILITY_OF_ACTION = { emperorCrown: 'emperor', threats: 'threats', collectTax: 'tax', seize: 'marshal', spy: 'spy', warrants: 'warrants', kill: 'kill', rob: 'rob', swap: 'mag', redraw: 'mag', destroy: 'war', peek: 'wiz', seer: 'seer', nav: 'nav', scholar: 'scholar' };
 // Colour-blind aid (setting): each district colour also gets a symbol.
 const COLOR_SYM = { yellow: 'king', blue: 'bishop', green: 'merchant', red: 'warlord', purple: 'magician' };
-const BLOCKING = ['emperorAdvisor', 'draft', 'discard', 'keep', 'wizPick', 'seerGive', 'grave', 'warrantResponse', 'threatResponse', 'threatReveal', 'over'];
-const TURN_SHEETS = ['emperor', 'threats', 'tax', 'marshal', 'spy', 'spyResult', 'warrants', 'kill', 'rob', 'mag', 'war', 'wiz', 'seer', 'nav', 'scholar', 'den', 'lab'];
+const BLOCKING = ['theater', 'emperorAdvisor', 'draft', 'discard', 'keep', 'wizPick', 'seerGive', 'grave', 'warrantResponse', 'threatResponse', 'threatReveal', 'over'];
+const TURN_SHEETS = ['armory', 'museum', 'payment', 'districts', 'emperor', 'threats', 'tax', 'marshal', 'spy', 'spyResult', 'warrants', 'kill', 'rob', 'mag', 'war', 'wiz', 'seer', 'nav', 'scholar', 'lab'];
 export const EMOTES = ['👍', '😂', '😮', '😡', '😈', '👑', '🙏', '🎉'];
 const seatHue = pid => SEAT_HUES[pid % SEAT_HUES.length];
 
@@ -129,7 +129,7 @@ export function createUI(ctx) {
       case 'magician': out.push(t('fy.hands', { a: me.hand.length, b: top(p => p.handCount).handCount })); break;
       case 'wizard': { const h = top(p => p.handCount); out.push(t('fy.peek', { name: P(h.id).name, n: h.handCount })); break; }
       case 'warlord': {
-        const costs = rivals.filter(p => p.city.length < v.cfg.goal).flatMap(p => p.city.filter(d => d.id !== 'keep').map(d => destroyCost(p, d)));
+        const costs = rivals.filter(p => completionCount(p) < v.cfg.goal).flatMap(p => p.city.filter(d => d.id !== 'keep').map(d => destroyCost(p, d)));
         if (costs.length) out.push(t('fy.target', { n: Math.min(...costs) }));
         break;
       }
@@ -140,7 +140,7 @@ export function createUI(ctx) {
   }
   // My resources at a glance (draft sheet): gold, hand, city and how many districts of each colour.
   const meStrip = (v, me) => `<div class="me-strip"><span class="st gold">${svg('gold')}<b>${me.gold}</b></span>
-    <span class="st">${svg('card')}<b>${me.hand.length}</b></span><span class="st">${svg('build')}<b>${me.city.length}/${v.cfg.goal}</b></span>
+    <span class="st">${svg('card')}<b>${me.hand.length}</b></span><span class="st">${svg('build')}<b>${completionCount(me)}/${v.cfg.goal}</b></span>
     <span class="cdots">${COLORS.map(c => `<span class="cdot" style="--k:${HUE[c]}" title="${t('col.' + c)}"><i></i>${me.city.filter(d => d.color === c).length}</span>`).join('')}</span></div>`;
   const rankChar = r => L.view.cfg.chars.find(c => rankOf(c) === r);
 
@@ -162,6 +162,9 @@ export function createUI(ctx) {
       case 'cards': return t('l.cards', { name: n(e.pid), n: e.n });
       case 'tithe': return t('l.tithe', { from: n(e.from) });
       case 'draw': return t('l.draw', { name: n(e.pid), n: e.n });
+      case 'museum': return t('l.museum', { name: n(e.pid) });
+      case 'theater': return t('l.theater', { name: n(e.pid), target: n(e.target) });
+      case 'sacrifice': return t('l.sacrifice', { name: n(e.pid), dist: dname(e.card) });
       case 'build': return t('l.build', { name: n(e.pid), dist: dname(e.card) });
       case 'tax': return t('l.tax', { name: n(e.pid), n: e.n, pool: e.pool });
       case 'emperorAdvisor': return t('ui.emperorAdvisor');
@@ -303,7 +306,7 @@ export function createUI(ctx) {
       }
       case 'crown': sfx('crown'); toast(txt, 'gold'); return 700;
       case 'complete': sfx('win'); banner(e); toast(`<b>${txt}</b>`, 'gold'); return 2000;
-      case 'spy': case 'warrants': case 'confiscate': case 'swap': case 'wizTake': case 'graveyard': case 'seer': case 'peek': case 'seerGive': case 'redraw': sfx('card', 2); toast(txt); return 700;
+      case 'museum': case 'theater': case 'sacrifice': case 'spy': case 'warrants': case 'confiscate': case 'swap': case 'wizTake': case 'graveyard': case 'seer': case 'peek': case 'seerGive': case 'redraw': sfx('card', 2); toast(txt); return 700;
       case 'over': sfx('win'); return 600;
     }
     return 300;
@@ -349,7 +352,7 @@ export function createUI(ctx) {
     if (interruptKey !== L.interruptKey) { L.interruptKey = interruptKey; if (interruptKey) alertTurn(); }
     // a new turn (incl. my second character straight after my first) closes the last turn's tools
     const turnKey = myTurn ? view.round + ':' + T.charId : null, wasWar = ['war', 'marshal'].includes(L.sheet);
-    if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; L.warrantTargets = []; L.threatTargets = []; L.spyTarget = null; L.spyColor = null; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
+    if (turnKey !== L.turnKey) { L.turnKey = turnKey; L.sel = null; L.endArmed = false; L.targetSel = null; L.warSel = null; L.armoryTarget = null; L.warrantTargets = []; L.threatTargets = []; L.spyTarget = null; L.spyColor = null; if (TURN_SHEETS.includes(L.sheet)) L.sheet = null; if (turnKey) alertTurn(); }
     const draftKey = draftMine ? view.round + ':' + view.draft.idx : null;
     if (draftKey !== L.draftKey) { L.draftKey = draftKey; L.draftSel = null; if (draftKey) alertTurn(); }
     if (myTurn && ABILITY_ICON[L.sheet] && L.sheet !== abilityKey(view)) L.sheet = null; // ability already spent
@@ -371,7 +374,7 @@ export function createUI(ctx) {
       els.me.innerHTML = `
         <div class="mp-id">${avatar(me)}<span class="mp-name">${esc(me.name)}</span>${view.crown === me.id ? `<span class="crown-ico" title="Crown">${svg('crown')}</span>` : ''}</div>
         <div class="mp-stats"><span class="st gold" title="${t('ui.gold')}">${svg('gold')}<b>${me.gold}</b></span>
-          <span class="st" title="${t('ui.city')}">${svg('build')}<b>${me.city.length}/${view.cfg.goal}</b></span>
+          <span class="st" title="${t('ui.city')}">${svg('build')}<b>${completionCount(me)}/${view.cfg.goal}</b></span>
           <span class="st" title="${t('ui.projected')}">★<b>${shownScore(view, me)}</b></span></div>
         <div class="mp-chars">${me.chars.map(c => chip(c, curChar === c ? 'data-on="1"' : view.killed === rankOf(c) && view.revealed.includes(c) ? 'data-dead="1"' : '')).join('')}</div>`;
     }
@@ -384,7 +387,7 @@ export function createUI(ctx) {
 
     // decisions that can't wait open themselves
     const pend = myTurn ? T.pending : null;
-    const auto = view.interrupt?.pid === view.me ? (view.interrupt.k === 'warrant' ? 'warrantResponse' : ['emperorAdvisor', 'threatResponse', 'threatReveal'].includes(view.interrupt.k) ? view.interrupt.k : 'grave')
+    const auto = view.interrupt?.pid === view.me ? (view.interrupt.k === 'warrant' ? 'warrantResponse' : ['theater', 'emperorAdvisor', 'threatResponse', 'threatReveal'].includes(view.interrupt.k) ? view.interrupt.k : 'grave')
       : draftMine ? (view.draft.mustDiscard ? 'discard' : 'draft')
       : pend?.k === 'keep' ? 'keep' : pend?.k === 'wizard' ? 'wizPick' : pend?.k === 'seerGive' ? 'seerGive' : null;
     if (auto && L.sheet !== auto && !L.drawers.some(d => d.sheet === auto)) { L.sheet = auto; L.multi.clear(); }
@@ -450,7 +453,7 @@ export function createUI(ctx) {
       const live = view.phase !== 'over' && view.phase !== 'idle';
       el.classList.toggle('active', actor === p.id && live);
       el.classList.toggle('winner', view.phase === 'over' && view.winner === p.id);
-      el.classList.toggle('done', p.city.length >= view.cfg.goal);
+      el.classList.toggle('done', completionCount(p) >= view.cfg.goal);
       el.innerHTML = `<div class="s-top">${avatar(p)}<span class="s-name">${esc(p.name)}</span>${view.crown === p.id ? `<span class="crown-ico">${svg('crown')}</span>` : ''}${p.ai && ctx.mode() !== 'solo' ? '<span class="tag ai">AI</span>' : ''}${actor === p.id && live ? '<span class="dots"><i></i><i></i><i></i></span>' : ''}</div>
         <div class="s-stats"><span class="st gold">${svg('gold')}<b>${p.gold}</b></span><span class="st">${svg('card')}<b>${p.handCount}</b></span><span class="st">${svg('build')}<b>${p.city.length}</b></span><span class="st">★<b>${shownScore(view, p)}</b></span></div>
         ${p.chars.length || p.charCount ? `<div class="s-chars">${p.chars.map(c => chip(c, view.killed === rankOf(c) ? 'data-dead="1"' : '')).join('')}${'<span class="chip hid">?</span>'.repeat(Math.max(0, p.charCount - p.chars.length))}</div>` : ''}`;
@@ -472,10 +475,13 @@ export function createUI(ctx) {
     if (!T || T.pid !== view.me) return null;
     if (view.interrupt || T.threat === 'gather') return t('ui.threatGather');
     if (!T.income) return t('ui.incomeFirst');
-    if (countsTowardLimit(T.charId, card) && T.built >= T.max) return T.max === 0 ? t('ui.noBuild') : t('ui.limit');
-    if (!canPlace(me, card)) return t('ui.dup');
-    const cost = buildCost(me, card);
-    if (cost > me.gold && !(card.id === 'thieves_den' && cost <= me.gold + me.hand.length - 1)) return t('ui.tooPoor');
+    if (!constructionOptions(view, me, card).length) {
+      if (T.max === 0) return t('ui.noBuild');
+      if (card.id === 'monument' && me.city.length >= 5) return t('ui.monumentLimit');
+      if (countsTowardLimit(T.charId, card) && T.built >= T.max) return t('ui.limit');
+      if (!canPlace(me, card)) return t('ui.dup');
+      return t('ui.tooPoor');
+    }
     return 'ok';
   }
 
@@ -513,17 +519,19 @@ export function createUI(ctx) {
     const T = view.turn, b = [];
     if (!T.income) {
       const n = has(me, 'observatory') ? 3 : 2;
-      b.push(`<button class="btn gold" data-a="gold">${svg('gold')}<span>${t('ui.takeGold')}</span><kbd>G</kbd></button>`);
+      b.push(`<button class="btn gold" data-a="gold">${svg('gold')}<span>${has(me, 'gold_mine') ? t('ui.takeGoldN', { n: 3 }) : t('ui.takeGold')}</span><kbd>G</kbd></button>`);
       b.push(`<button class="btn" data-a="draw" ${view.deckCount ? '' : 'disabled'}>${svg('draw')}<span>${has(me, 'library') ? t('ui.drawAll', { n }) : t('ui.drawCards', { n, k: 1 })}</span><kbd>D</kbd></button>`);
     }
     if (T.threat === 'gather') { els.actions.innerHTML = b.join('') + hintBtn; markHint(); return; }
     const ab = abilityKey(view);
     if (T.spyPeek) b.push(`<button class="btn" data-a="sheet" data-v="spyResult">${svg('spy')}<span>${t('ui.spyReview')}</span></button>`);
     if (ab) b.push(`<button class="btn ability" style="--cc:${CHAR[T.charId].color}" data-a="sheet" data-v="${ab}">${svg(ABILITY_ICON[ab])}<span>${esc(cname(T.charId))}</span><kbd>A</kbd></button>`);
-    if (has(me, 'smithy') && !T.used.smithy && me.gold >= 2) b.push(`<button class="btn small" data-a="smithy">${svg('smithy')}<span>${t('ui.smithy')}</span></button>`);
-    if (has(me, 'laboratory') && !T.used.lab && me.hand.length) b.push(`<button class="btn small" data-a="sheet" data-v="lab">${svg('lab')}<span>${t('ui.lab')}</span></button>`);
+    if ((has(me, 'smithy') && !T.used.smithy && me.gold >= 2) ||
+        (has(me, 'laboratory') && !T.used.lab && me.hand.length) || has(me, 'armory') ||
+        (me.hand.length && me.city.some(c => c.id === 'museum' && !T.used['museum:' + c.uid])))
+      b.push(`<button class="btn small" data-a="sheet" data-v="districts">${svg('museum')}<span>${t('ui.districtEffects')}</span></button>`);
     const sel = me.hand.find(c => c.uid === L.sel);
-    if (sel && buildState(view, me, sel) === 'ok') b.push(`<button class="btn primary" data-a="build">${svg('build')}<span>${t('ui.buildFor', { n: buildCost(me, sel) })}</span><kbd>B</kbd></button>`);
+    if (sel && buildState(view, me, sel) === 'ok') b.push(`<button class="btn primary" data-a="build">${svg('build')}<span>${constructionOptions(view, me, sel).some(a => a.sacrifice) ? t('ui.build') : t('ui.buildFor', { n: buildCost(me, sel) })}</span><kbd>B</kbd></button>`);
     if (T.income && !(T.charId === 22 && !T.used.ability)) b.push(`<button class="btn ${sel ? '' : 'primary'} end" data-a="end">${svg('end')}<span>${t('ui.endTurn')}</span><kbd>E</kbd></button>`);
     b.push(hintBtn);
     els.actions.innerHTML = b.join('');
@@ -534,6 +542,7 @@ export function createUI(ctx) {
     let s = '';
     const actor = actorOf(view);
     if (view.phase === 'over') s = t('ui.winner', { name: pname(view.winner) });
+    else if (view.interrupt?.k === 'theater') s = esc(dname('theater')) + ' · ' + esc(pname(view.interrupt.pid));
     else if (view.interrupt?.k === 'emperorAdvisor') s = t('ui.emperorAdvisor') + ' · ' + esc(pname(view.interrupt.pid));
     else if (view.interrupt && ['threatResponse', 'threatReveal'].includes(view.interrupt.k)) s = view.interrupt.pid === view.me ? t(view.interrupt.k === 'threatResponse' ? 'ui.threatReview' : 'ui.threatRevealTitle') : t('ui.waitingThreat', { name: pname(view.interrupt.pid) });
     else if (myTurn && view.turn.threat === 'gather') s = t('ui.threatGather');
@@ -562,6 +571,9 @@ export function createUI(ctx) {
     const me = v.players[v.me];
     const cardIn = (list, uid) => list?.find(c => c.uid === uid);
     switch (a.t) {
+      case 'theater': return dname('theater');
+      case 'museum': return dname('museum');
+      case 'armory': return dname('armory');
       case 'emperorAdvisor': case 'emperorCrown': return t('ui.emperorTitle') + ' · ' + v.players[a.target].name;
       case 'pick': case 'discard': return t('h.' + a.t, { char: cname(a.charId) });
       case 'gold': case 'draw': case 'end': case 'seer': case 'scholar': case 'smithy': case 'seerGive': return t('h.' + a.t);
@@ -596,6 +608,8 @@ export function createUI(ctx) {
     if (a.t === 'kill' || a.t === 'rob') L.targetSel = a.rank;
     if (a.t === 'warrants') L.warrantTargets = [a.signed, ...a.targets.filter(c => c !== a.signed)];
     if (a.t === 'threats') L.threatTargets = [a.flower, ...a.targets.filter(c => c !== a.flower)];
+    if (a.t === 'theater') L.theaterRole = a.charId;
+    if (a.t === 'armory') L.armoryTarget = a.uid;
     if (a.t === 'spy') { L.spyTarget = a.target; L.spyColor = a.color; }
     if (a.t === 'destroy' || a.t === 'seize') L.warSel = a.uid;
     render(L.view);
@@ -610,6 +624,10 @@ export function createUI(ctx) {
     if (a.t === 'pick' || a.t === 'discard') sel.push(`.ccard[data-char="${a.charId}"]`);
     if (['gold', 'draw', 'end', 'smithy'].includes(a.t)) sel.push(`[data-a="${a.t}"]`);
     if (a.t === 'build') sel.push(`.hand .card[data-uid="${a.uid}"]`, '[data-a="build"]');
+    if (['lab', 'smithy', 'museum', 'armory'].includes(a.t)) sel.push('[data-a="sheet"][data-v="districts"]');
+    if (a.t === 'museum') sel.push('[data-a="sheet"][data-v="museum"]', `.card[data-a="museumStore"][data-uid="${a.uid}"]`);
+    if (a.t === 'armory') sel.push('[data-a="sheet"][data-v="armory"]', `.card[data-a="armoryTarget"][data-uid="${a.uid}"]`, '[data-a="armoryGo"]');
+    if (a.t === 'theater') sel.push(a.pass ? '[data-a="theaterPass"]' : `[data-a="theaterSwap"][data-v="${a.target}"]`);
     if (a.t === 'lab') sel.push('[data-a="sheet"][data-v="lab"]', `.card[data-a="lab"][data-uid="${a.uid}"]`);
     if (a.t === 'keep') sel.push(`.card[data-a="keep"][data-uid="${a.uids[0]}"]`);
     if (a.t === 'wizTake') sel.push(`[data-a="${a.build ? 'wizBuild' : 'wizTake'}"][data-v="${a.uid}"]`);
@@ -672,7 +690,49 @@ export function createUI(ctx) {
     const myRanks = me ? me.chars.map(rankOf) : [];
     const hintFoot = `<div class="sh-foot"><button class="btn small ghost hint-btn" data-a="hint">${svg('help')}<span>${t('ui.hint')}</span></button></div>`;
 
-    if (s === 'draft' || s === 'discard') {
+    if (s === 'districts') {
+      const buttons = [];
+      if (has(me, 'smithy') && !T.used.smithy && me.gold >= 2) buttons.push(`<button class="btn" data-a="smithy">${svg('smithy')}${esc(dname('smithy'))}</button>`);
+      if (has(me, 'laboratory') && !T.used.lab && me.hand.length) buttons.push(`<button class="btn" data-a="sheet" data-v="lab">${svg('lab')}${esc(dname('laboratory'))}</button>`);
+      if (has(me, 'armory')) buttons.push(`<button class="btn" data-a="sheet" data-v="armory">${svg('armory')}${esc(dname('armory'))}</button>`);
+      if (me.hand.length && me.city.some(c => c.id === 'museum' && !T.used['museum:' + c.uid])) buttons.push(`<button class="btn" data-a="sheet" data-v="museum">${svg('museum')}${esc(dname('museum'))}</button>`);
+      html = sheetFrame(t('ui.districtEffects'), `<div class="sh-actions">${buttons.join('')}</div>`);
+    } else if (s === 'theater' && v.interrupt?.k === 'theater') {
+      if (!me.chars.includes(L.theaterRole)) L.theaterRole = me.chars[0];
+      html = sheetFrame(dname('theater'), `<p class="note">${esc(ddesc('theater'))}</p>
+        <div class="sh-actions">${me.chars.map(charId => `<button class="btn ${L.theaterRole === charId ? 'primary' : ''}" data-a="theaterRole" data-v="${charId}">${esc(cname(charId))}</button>`).join('')}</div>
+        <div class="sh-actions">${v.players.filter(p => p.id !== me.id).map(p => `<button class="btn" data-a="theaterSwap" data-v="${p.id}">${esc(pname(p.id))}</button>`).join('')}</div>`,
+        { closable: false, foot: `<div class="sh-foot"><button class="btn" data-a="theaterPass">${t('ui.pass')}</button></div>` });
+    } else if (s === 'payment') {
+      const card = L.paymentWizard ? pend?.cards?.find(c => c.uid === L.paymentCard) : me.hand.find(c => c.uid === L.paymentCard);
+      if (!card) { L.sheet = pend?.k === 'wizard' ? 'wizPick' : null; return renderSheet(); }
+      const paymentCards = me.hand.filter(c => c.uid !== card.uid);
+      L.multi = new Set([...L.multi].filter(uid => paymentCards.some(c => c.uid === uid)));
+      // Policies may suggest concrete payments, but humans choose their own cards.
+      L.buildChoices = constructionOptions(v, me, card, !!L.paymentWizard).filter(a => !a.pay?.length);
+      if (card.id === 'thieves_den' && (L.multi.size || buildCost(me, card) > me.gold))
+        L.buildChoices.push({ t: L.paymentWizard ? 'wizTake' : 'build', uid: card.uid,
+          ...(L.paymentWizard ? { build: true } : {}), payment: 'gold', pay: [...L.multi] });
+      const picker = card.id === 'thieves_den' ? `<h4>${t('ui.denPay')}</h4><p class="note">${esc(ddesc(card.id))}</p>
+        <div class="cards-pick">${sortHand(paymentCards).map(c => cardHTML(c, { cls: L.multi.has(c.uid) ? 'picked' : '', attrs: `data-a="multi" aria-pressed="${L.multi.has(c.uid)}"` })).join('')}</div>` : '';
+      html = sheetFrame(t('ui.payment'), `<div class="cards-big">${cardHTML(card, { cls: 'big' })}</div>${picker}`, { foot: `<div class="sh-foot">${L.buildChoices.map((a, i) => {
+        const sacrifice = me.city.find(c => c.uid === a.sacrifice);
+        const plan = constructionPlan(v, me, card, a, !!L.paymentWizard);
+        const label = sacrifice ? t('ui.sacrifice', { dist: dname(sacrifice) }) : t('ui.buildFor', { n: Math.max(0, buildCost(me, card) - (a.pay?.length || 0)) });
+        return `<button class="btn" data-a="paymentGo" data-v="${i}" ${plan.error ? 'disabled' : ''}>${esc(label)}${a.pay ? ` + ${svg('card')}${a.pay.length}` : ''}</button>`;
+      }).join('')}</div>` });
+    } else if (s === 'museum') {
+      html = sheetFrame(dname('museum'), `<p class="note">${esc(ddesc('museum'))}</p>${me.city.filter(c => c.id === 'museum' && !T.used['museum:' + c.uid]).map(m =>
+        `<div class="cards-pick">${sortHand(me.hand).map(c => cardHTML(c, { attrs: `data-a="museumStore" data-museum="${m.uid}"` })).join('')}</div>`).join('')}`);
+    } else if (s === 'armory') {
+      L.armoryChoices = me.city.filter(c => c.id === 'armory').flatMap(armory => v.players.flatMap(target => target.city.filter(c => !armoryError(v, me, armory, target, c)).map(card =>
+        ({ t: 'armory', armory: armory.uid, target: target.id, uid: card.uid }))));
+      const selected = L.armoryChoices.findIndex(a => a.uid === L.armoryTarget);
+      html = sheetFrame(dname('armory'), `<p class="note">${esc(ddesc('armory'))}</p><div class="cards-pick">${L.armoryChoices.map(a => {
+        const target = v.players[a.target], card = target.city.find(c => c.uid === a.uid);
+        return `<div>${esc(pname(target.id))}${cardHTML(card, { cls: a.uid === L.armoryTarget ? 'sel' : '', attrs: 'data-a="armoryTarget"' })}</div>`;
+      }).join('')}</div>`, { foot: `<div class="sh-foot"><button class="btn danger" data-a="armoryGo" data-v="${selected}" ${selected < 0 ? 'disabled' : ''}>${t('ui.armoryGo')}</button></div>` });
+    } else if (s === 'draft' || s === 'discard') {
       const discarding = s === 'discard';
       const opts = [...(v.draft.options || [])].sort((a, b) => rankOf(a) - rankOf(b));
       if (!opts.includes(L.draftSel)) L.draftSel = null;
@@ -772,7 +832,7 @@ export function createUI(ctx) {
       const why = x => x.ok ? '' : x.sh ? t('ui.shielded.' + x.sh) : marshal ? t('seize.' + x.why) : x.card.id === 'keep' ? t('war.keep') : t('ui.tooPoor');
       html = sheetFrame(marshal ? cname(20) : t('ui.warTitle'), `<p class="ctx-line">${svg('gold')}${t('war.have', { n: me.gold })} · ${marshal ? esc(cabil(20)) : t('ui.warHint')}</p>` + by.map(({ o, list }) => `
         <div class="wgroup ${o.id === v.me ? 'own' : ''}"><div class="wg-head" style="--seat:${seatHue(o.id)}">${avatar(o)}<b>${o.id === v.me ? t('ui.you') : esc(o.name)}</b>
-          <span class="muted">★${shownScore(v, o)}${o.city.length < goal ? ' · ' + t('war.toGo', { n: goal - o.city.length }) : ''}</span>
+          <span class="muted">★${shownScore(v, o)}${completionCount(o) < goal ? ' · ' + t('war.toGo', { n: goal - completionCount(o) }) : ''}</span>
           ${list[0].sh ? `<span class="tag">${t('ui.shielded.' + list[0].sh)}</span>` : ''}</div>
         ${list[0].sh ? '' : `<div class="cards-pick">${list.map(x => `<div class="wopt ${x.ok ? '' : 'no'}">${cardHTML(x.card, {
           cls: [x.ok ? 'target' : 'blocked', L.warSel === x.card.uid ? 'picked' : ''].join(' '),
@@ -794,7 +854,7 @@ export function createUI(ctx) {
       html = sheetFrame(t('ui.wizTitle'), `<div class="plist">${opps.map(p => `<button class="pitem" data-a="peek" data-v="${p.id}">${avatar(p)}<span>${esc(p.name)}</span><span class="st">${svg('card')}<b>${p.handCount}</b></span></button>`).join('')}</div>`, { foot: hintFoot });
     } else if (s === 'wizPick' && pend) {
       html = sheetFrame(cname(11) + ' · ' + esc(P(pend.target).name), `<div class="cards-big">${sortHand(pend.cards).map(c => {
-        const canB = buildCost(me, c) <= me.gold;
+        const canB = constructionOptions(v, me, c, true).length > 0;
         return `<div class="wiz-opt">${cardHTML(c, { cls: 'big', costShown: buildCost(me, c) })}
           <button class="btn small" data-a="wizTake" data-v="${c.uid}">${t('ui.wizTake')}</button>
           <button class="btn small primary" data-a="wizBuild" data-v="${c.uid}" ${canB ? '' : 'disabled'}>${t('ui.wizBuild', { n: buildCost(me, c) })}</button></div>`;
@@ -816,22 +876,15 @@ export function createUI(ctx) {
     } else if (s === 'lab') {
       html = sheetFrame(dname('laboratory'), `<p class="note">${esc(ddesc('laboratory'))}</p>
         <div class="cards-pick">${sortHand(me.hand).map(c => cardHTML(c, { attrs: 'data-a="lab"' })).join('')}</div>`);
-    } else if (s === 'den') {
-      const card = me.hand.find(c => c.uid === L.sel);
-      if (!card) { L.sheet = null; return renderSheet(); }
-      const cost = buildCost(me, card), need = Math.max(0, cost - me.gold), goldPaid = cost - L.multi.size;
-      html = sheetFrame(dname(card) + ' · ' + t('ui.denPay'), `<p class="note">${t('ui.denHint', { n: need })}</p>
-        <div class="cards-pick">${sortHand(me.hand.filter(c => c.uid !== card.uid)).map(c => cardHTML(c, { cls: L.multi.has(c.uid) ? 'picked' : '', attrs: 'data-a="multi"' })).join('')}</div>`,
-        { foot: `<div class="sh-foot"><button class="btn primary" data-a="denBuild" ${L.multi.size >= need && goldPaid >= 0 ? '' : 'disabled'}>${svg('build')}${svg('gold')}${Math.max(0, goldPaid)} + ${svg('card')}${L.multi.size}</button></div>` });
     } else if (s === 'inspect') {
       const p = P(L.inspect);
       if (!p) { L.sheet = null; return renderSheet(); }
       const sc = v.phase === 'over' ? v.scores[p.id].total : shownScore(v, p);
       html = sheetFrame(`<span class="seat-dot" style="--seat:${seatHue(p.id)}"></span>${avatar(p)} ${p.id === v.me ? t('ui.you') : esc(p.name)}`, `
         <div class="stats-row"><span class="st gold">${svg('gold')}<b>${p.gold}</b></span><span class="st">${svg('card')}<b>${p.handCount}</b></span>
-        <span class="st">${svg('build')}<b>${p.city.length}/${v.cfg.goal}</b></span><span class="st">★<b>${sc}</b></span>
+        <span class="st">${svg('build')}<b>${completionCount(p)}/${v.cfg.goal}</b></span><span class="st">★<b>${sc}</b></span>
         ${p.chars.map(c => chip(c)).join('')}</div>
-        <div class="cards-pick city">${p.city.length ? p.city.map(c => cardHTML(c, { attrs: 'data-a="none"' })).join('') : `<p class="muted">—</p>`}</div>`);
+        <div class="cards-pick city">${p.city.length ? p.city.map(c => cardHTML(c, { attrs: 'data-a="none"' }) + (c.stored?.length ? `<p class="note">${t('ui.stored', { n: c.stored.length })}: ${c.stored.filter(x => !x.hidden).map(x => esc(dname(x))).join(', ')}</p>` : '')).join('') : `<p class="muted">—</p>`}</div>`);
       wide = true;
     } else if (s === 'round') {
       const calls = roundFeed(v);
@@ -907,6 +960,7 @@ export function createUI(ctx) {
     if (!L.sheet) return;
     L.drawers.push({ sheet: L.sheet, multi: new Set(L.multi),
       sel: L.sel, draftSel: L.draftSel, targetSel: L.targetSel, warSel: L.warSel, inspect: L.inspect,
+      paymentCard: L.paymentCard, paymentWizard: L.paymentWizard,
       title: $('h2, h1', els.sheet)?.textContent || '' });
     L.sheet = null;
     L.multi.clear();
@@ -936,7 +990,18 @@ export function createUI(ctx) {
     ctx.scene.highlight(['war', 'marshal'].includes(name) ? warTargets(L.view, name === 'marshal').filter(x => x.ok).map(x => x.card.uid) : []);
     sfx('click');
   }
+  function openPayment(uid, wizard) {
+    // A hidden payment picker belongs to one construction, not the next card.
+    L.drawers = L.drawers.filter(d => d.sheet !== 'payment' ||
+      (d.paymentCard === uid && d.paymentWizard === wizard));
+    L.paymentCard = uid; L.paymentWizard = wizard;
+    openSheet('payment');
+  }
   function closeSheet() {
+    if (L.sheet === 'payment' && L.paymentWizard && L.view?.turn?.pending?.k === 'wizard') {
+      L.drawers = L.drawers.filter(d => d.sheet !== 'wizPick');
+      L.sheet = 'wizPick'; renderSheet(); return;
+    }
     if (L.sheet === 'journeys' && L.drawers.at(-1)?.sheet === 'over') {
       restoreSheet();
       $('[data-a="journey"]', els.sheet)?.focus({ preventScroll: true });
@@ -1028,7 +1093,7 @@ export function createUI(ctx) {
       case 'draw': return go({ t: 'draw' });
       case 'end': {
         // Ending while a build is still possible is usually a slip: ask once (setting).
-        const canBuild = me && view.turn.built < view.turn.max && me.hand.some(c => buildState(view, me, c) === 'ok');
+        const canBuild = me && me.hand.some(c => buildState(view, me, c) === 'ok');
         if (prefs.confirmEnd && canBuild && !L.endArmed) {
           L.endArmed = true;
           el.classList.add('armed'); el.querySelector('span').textContent = t('ui.endSure');
@@ -1039,7 +1104,7 @@ export function createUI(ctx) {
         L.sel = null; L.endArmed = false; return go({ t: 'end' });
       }
       case 'settings': return ctx.openSettings();
-      case 'smithy': return go({ t: 'smithy' });
+      case 'smithy': closeSheet(); return go({ t: 'smithy' });
       case 'card': {
         const uid = el.dataset.uid;
         if (el.dataset.why) toast(el.dataset.why);
@@ -1050,11 +1115,11 @@ export function createUI(ctx) {
       case 'build': {
         const card = me.hand.find(c => c.uid === L.sel);
         if (!card) return;
-        if (buildCost(me, card) > me.gold) return openSheet('den');
+        const options = constructionOptions(view, me, card);
+        if (card.id === 'thieves_den' || options.some(a => a.sacrifice)) return openPayment(card.uid, false);
         L.sel = null;
         return go({ t: 'build', uid: card.uid });
       }
-      case 'denBuild': { const uid = L.sel; L.sel = null; const pay = [...L.multi]; closeSheet(); return go({ t: 'build', uid, pay }); }
       case 'keep': return go({ t: 'keep', uids: [el.dataset.uid] });
       case 'kill': case 'rob':
         sfx('click');
@@ -1077,8 +1142,10 @@ export function createUI(ctx) {
       case 'multi': {
         const uid = el.dataset.uid;
         // when the selection is already full (Seer give-back, Thieves' Den), a new pick replaces the oldest
-        const V = L.view, sel = V.players[V.me].hand.find(c => c.uid === L.sel);
-        const cap = L.sheet === 'seerGive' ? V.turn?.pending?.targets?.length : L.sheet === 'den' && sel ? buildCost(V.players[V.me], sel) : Infinity;
+        const V = L.view, me = V.players[V.me];
+        const card = L.paymentWizard ? V.turn?.pending?.cards?.find(c => c.uid === L.paymentCard) : me.hand.find(c => c.uid === L.paymentCard);
+        const cap = L.sheet === 'seerGive' ? V.turn?.pending?.targets?.length : L.sheet === 'payment' && card ? buildCost(me, card) : Infinity;
+        if (cap <= 0) return;
         if (L.multi.has(uid)) L.multi.delete(uid);
         else { if (L.multi.size >= cap) L.multi.delete(L.multi.values().next().value); L.multi.add(uid); }
         sfx('click');
@@ -1098,7 +1165,23 @@ export function createUI(ctx) {
       }
       case 'peek': closeSheet(); return go({ t: 'peek', target: +v });
       case 'wizTake': return go({ t: 'wizTake', uid: v, build: false });
-      case 'wizBuild': return go({ t: 'wizTake', uid: v, build: true });
+      case 'wizBuild': {
+        return openPayment(v, true);
+      }
+      case 'paymentGo': {
+        const action = L.buildChoices?.[+v];
+        const card = L.paymentWizard ? view.turn?.pending?.cards?.find(c => c.uid === L.paymentCard) : me.hand.find(c => c.uid === L.paymentCard);
+        if (!action || constructionPlan(view, me, card, action, !!L.paymentWizard).error) return;
+        L.paymentWizard = false; closeSheet(); L.sel = null; return go(action);
+      }
+      case 'museumStore': closeSheet(); return go({ t: 'museum', museum: el.dataset.museum, uid: el.dataset.uid });
+      case 'armoryTarget': L.armoryTarget = el.dataset.uid; return renderSheet();
+      case 'armoryGo': { const action = L.armoryChoices?.[+v]; if (!action) return; closeSheet(); return go(action); }
+      case 'theaterRole': L.theaterRole = +v; return renderSheet();
+      case 'theaterPass': case 'theaterSwap': {
+        const i = view.interrupt;
+        return go({ t: 'theater', id: i.id, round: i.round, pass: a === 'theaterPass', charId: L.theaterRole, target: +v });
+      }
       case 'seerGo': closeSheet(); return go({ t: 'seer' });
       case 'seerGive': return go({ t: 'seerGive', uids: [...L.multi] });
       case 'nav': closeSheet(); return go({ t: 'nav', choice: v });
