@@ -573,12 +573,18 @@ function emperorChoice(v, pid, lookahead = false) {
   const advisor = v.interrupt?.k === 'emperorAdvisor', me = v.players[pid];
   const final = v.firstComplete !== null || v.round >= 40;
   const actions = [];
+  const crownValues = new Map();
   const visible = new Set([...me.hand, ...v.players.flatMap(p => p.city)].map(c => c.uid));
   const unseen = makeDeck().filter(c => !visible.has(c.uid));
   const expectedCard = unseen.length ? unseen.reduce((sum, c) => sum + cardValue(me, c), 0) / unseen.length : 0;
   let chosen, top = -Infinity;
   for (const q of v.players) {
     if (q.id === pid || q.id === v.crown) continue;
+    // Rollouts end before the next draft, so retain its public-information value.
+    const crownValue = final ? 0
+      : -Math.min(0.8, Math.max(0, threat(v, q) - threat(v, me)) / 100)
+        - ((pid - q.id + v.players.length) % v.players.length) * 0.08;
+    crownValues.set(q.id, crownValue);
     const count = q.handCount ?? q.hand.length;
     const resources = advisor ? [null] : [...(q.gold > 0 ? ['gold'] : []), ...(count ? ['card'] : [])];
     if (!resources.length) resources.push('none');
@@ -586,10 +592,7 @@ function emperorChoice(v, pid, lookahead = false) {
       let value = 0;
       if (resource === 'gold') value = 1.1 + Number(me.hand.some(c => canPlace(me, c) && buildCost(me, c) === me.gold + 1)) * 0.6;
       if (resource === 'card') value = Math.min(2, Math.max(0.4, expectedCard * 0.3)) + (has(me, 'map_room') ? 1 : 0);
-      if (!final) {
-        value -= Math.min(0.8, Math.max(0, threat(v, q) - threat(v, me)) / 100);
-        value -= ((pid - q.id + v.players.length) % v.players.length) * 0.08;
-      }
+      value += crownValue;
       const action = advisor
         ? { t: 'emperorAdvisor', id: v.interrupt.id, round: v.round, charId: 22, target: q.id }
         : { t: 'emperorCrown', round: v.round, charId: 22, target: q.id, resource };
@@ -600,5 +603,12 @@ function emperorChoice(v, pid, lookahead = false) {
       }
     }
   }
-  return lookahead && SEARCH.on && actions.length > 1 ? search(v, pid, actions, SEARCH.budget) : chosen;
+  return lookahead && SEARCH.on && actions.length > 1
+    ? search(v, pid, actions, SEARCH.budget, {
+      stable: true,
+      // Do not value next-round priority if this sampled round ends the game.
+      // Tribute itself is already reflected in the rollout's resources/score.
+      actionBonus: (action, result) => result.phase === 'over' || result.firstComplete !== null
+        ? 0 : crownValues.get(action.target),
+    }) : chosen;
 }
