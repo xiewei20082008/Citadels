@@ -363,6 +363,13 @@ svg.ico { width: 1.25em; height: 1.25em; flex: none; }
 }
 .sheet.wide { width: min(1000px, 100%); }
 .sheet-wrap.open .sheet { transform: none; }
+.item-details {
+  width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 18px 20px 20px;
+  box-sizing: border-box; color: var(--ink); background: var(--glass-2); border: 1px solid var(--line-2);
+  border-radius: 22px; box-shadow: var(--shadow); overflow-y: auto; pointer-events: auto;
+}
+.item-details::backdrop { background: rgba(3, 5, 8, 0.55); backdrop-filter: blur(5px); }
+.item-details .sh-foot .btn { white-space: normal; }
 .sh-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .sh-head h2 { margin: 0; font-family: var(--f-disp); font-weight: 600; font-size: 20px; color: var(--gold-hi); letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px; }
 .sh-body { min-height: 0; overflow: auto; }
@@ -480,6 +487,7 @@ input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(230, 189, 10
 .ranks { display: none; gap: 6px; margin-top: 10px; }
 .ranks.open { display: grid; }
 .rank-row { display: flex; align-items: center; gap: 8px; }
+.rank-row .seg { min-width: 0; flex-wrap: wrap; }
 .rk { font-family: var(--f-disp); color: var(--gold); width: 30px; font-size: 13px; font-weight: 700; }
 .rank-row .seg button { padding: 5px 8px; font-size: 11.5px; }
 .strip { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; align-items: center; }
@@ -946,6 +954,7 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
 .warrant-choices .btn { white-space: normal; min-width: 0; padding: 8px; font-size: 12px; }
 .warrant-mark { position: absolute; right: 1px; top: 1px; color: #d9b267; font-size: 12px; line-height: 1; }
 .warrant-mark.signed { color: #fff1be; }
+.threat-mark { position: absolute; left: 1px; top: 1px; color: #f1afd3; font-size: 12px; line-height: 1; }
 /* Spy choices stay compact with all seven seats on a phone. */
 .spy-targets, .spy-colors { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .spy-targets .btn { flex: 1 1 44%; min-width: 0; flex-direction: column; gap: 4px; white-space: normal; overflow-wrap: anywhere; }
@@ -958,3 +967,14 @@ table.score tr.me td:first-child { color: var(--gold-hi); }
     backdrop-filter: none; -webkit-backdrop-filter: none;
   }
 }
+
+/* Compact tribute controls stay inside each recipient column on narrow screens. */
+.emperor-choices > div { min-width: 0; }
+.emperor-choices b { display: block; overflow-wrap: anywhere; margin-bottom: 4px; }
+.emperor-choices .seg { display: flex; flex-direction: column; }
+.emperor-choices .btn { justify-content: center; }
+
+/* District decisions share a compact wrapping layout, including narrow phones. */
+.sh-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.sh-actions .btn { flex: 1 1 42%; min-width: 0; white-space: normal; overflow-wrap: anywhere; justify-content: center; }
+.cards-pick > div { min-width: 0; }

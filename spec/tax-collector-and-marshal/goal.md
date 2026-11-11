@@ -43,7 +43,7 @@ Marshal gains one gold per military district. Once during its turn it may pay an
 
 ### Edition boundaries and future compatibility
 
-The current project's `dd.keep` protects only against Warlord destruction; `dd.great_wall` raises only Warlord destruction cost. The character rulebook alone does not reproduce every district card's wording. For this scope, explicitly retain those existing district semantics: Keep is eligible for seizure if otherwise legal, and Great Wall adds no seizure surcharge. This is a project compatibility decision, not a verified claim about every physical edition. If adopting broader rank-8 district effects later, verify the exact cards, update rules text and all translations, and update the related scenarios together. Do not silently reuse the Warlord restrictions.
+The original Marshal implementation retained Warlord-only Keep and Great Wall effects. That compatibility decision is superseded by [the rank-8 fix](../rank8-fix/goal.md): Keep cannot be seized, and Great Wall adds one gold to the payment for seizing its owner's other districts. Marshal's three-gold eligibility ceiling uses building cost before this surcharge.
 
 Artist, Witch, Alchemist, Diplomat, Museum, Framework, Necropolis, and Stables are future compatibility cases where absent from `js/data.js`; adding them is outside this feature. Future Artist support must retain beautification and use its increased cost for both Marshal's ceiling and payment. Future Museum transfers retain attached cards. Free-construction paths must still reach tax settlement. Preserve the project's current city goal, scoring, Haunted City behavior, and supported 2-7 player range.
 

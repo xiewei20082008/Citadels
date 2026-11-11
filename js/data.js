@@ -28,6 +28,8 @@ export const CHARS = [
   { id: 18, rank: 2, key: 'spy', color: '#688f9c' },
   { id: 19, rank: 9, key: 'tax_collector', color: '#b9935a' },
   { id: 20, rank: 8, key: 'marshal', color: '#d2544a', income: 'red' },
+  { id: 22, rank: 4, key: 'emperor', color: '#e8b34a', income: 'yellow' },
+  { id: 21, rank: 2, key: 'blackmailer', color: '#b16e91' },
 ];
 export const CHAR = Object.fromEntries(CHARS.map(c => [c.id, c]));
 
@@ -40,26 +42,33 @@ export const PRESETS = {
 
 // id: [cost, color, copies]
 export const DIST = {
-  manor: [3, 'yellow', 3], castle: [4, 'yellow', 3], palace: [5, 'yellow', 2],
+  manor: [3, 'yellow', 5], castle: [4, 'yellow', 4], palace: [5, 'yellow', 3],
   temple: [1, 'blue', 3], church: [2, 'blue', 3], monastery: [3, 'blue', 3], cathedral: [5, 'blue', 2],
-  tavern: [1, 'green', 3], market: [2, 'green', 3], trading_post: [2, 'green', 2], docks: [3, 'green', 2],
-  harbor: [4, 'green', 2], town_hall: [5, 'green', 2],
-  watchtower: [1, 'red', 3], prison: [2, 'red', 3], battlefield: [3, 'red', 2], fortress: [5, 'red', 2],
+  tavern: [1, 'green', 5], market: [2, 'green', 4], trading_post: [2, 'green', 3], docks: [3, 'green', 3],
+  harbor: [4, 'green', 3], town_hall: [5, 'green', 2],
+  watchtower: [1, 'red', 3], prison: [2, 'red', 3], battlefield: [3, 'red', 3], fortress: [5, 'red', 2],
   haunted_city: [2, 'purple', 1], factory: [5, 'purple', 1], dragon_gate: [6, 'purple', 1],
-  university: [6, 'purple', 1], thieves_den: [6, 'purple', 1], keep: [3, 'purple', 1],
-  graveyard: [1, 'purple', 1], observatory: [5, 'purple', 1], smithy: [5, 'purple', 1],
+  thieves_den: [6, 'purple', 1], keep: [3, 'purple', 1],
+  observatory: [5, 'purple', 1], smithy: [5, 'purple', 1],
   library: [6, 'purple', 1], school_of_magic: [6, 'purple', 1], wishing_well: [5, 'purple', 1],
   map_room: [5, 'purple', 1], secret_vault: [3, 'purple', 1], great_wall: [6, 'purple', 1],
   quarry: [5, 'purple', 1], basilica: [6, 'purple', 1], capitol: [5, 'purple', 1],
   ivory_tower: [3, 'purple', 1], laboratory: [5, 'purple', 1],
+  armory: [3, 'purple', 1], framework: [3, 'purple', 1], gold_mine: [6, 'purple', 1],
+  imperial_treasury: [5, 'purple', 1], monument: [4, 'purple', 1], museum: [4, 'purple', 1],
+  necropolis: [5, 'purple', 1], park: [6, 'purple', 1], poor_house: [4, 'purple', 1],
+  stables: [2, 'purple', 1], statue: [3, 'purple', 1], theater: [6, 'purple', 1],
 };
 export const DIST_IDS = Object.keys(DIST);
 
-export function makeDeck() {
+export function makeDeck(uniqueIds = null) {
   const deck = [];
   let n = 0;
-  for (const [id, [cost, color, copies]] of Object.entries(DIST))
+  for (const [id, [cost, color, copies]] of Object.entries(DIST)) {
+    // Allocate catalogue UIDs before filtering so configured decks retain identity.
+    if (color === 'purple' && uniqueIds && !uniqueIds.includes(id)) { n += copies; continue; }
     for (let i = 0; i < copies; i++) deck.push({ uid: 'c' + n++, id, cost, color });
+  }
   return deck;
 }
 

@@ -1,15 +1,15 @@
 // English + Chinese live in the table below; other languages are one file each in ./lang/ (missing keys
 // fall back to English). t('key', {vars}) — '{name}' placeholders.
-import { CHAR } from './data.js?v=ec8020af';
-import ja from './lang/ja.js?v=ec8020af';
-import ko from './lang/ko.js?v=ec8020af';
-import es from './lang/es.js?v=ec8020af';
-import fr from './lang/fr.js?v=ec8020af';
-import zhTW from './lang/zh-TW.js?v=ec8020af';
-import de from './lang/de.js?v=ec8020af';
-import pt from './lang/pt.js?v=ec8020af';
-import ru from './lang/ru.js?v=ec8020af';
-import it from './lang/it.js?v=ec8020af';
+import { CHAR } from './data.js?v=a3b36d07';
+import ja from './lang/ja.js?v=a3b36d07';
+import ko from './lang/ko.js?v=a3b36d07';
+import es from './lang/es.js?v=a3b36d07';
+import fr from './lang/fr.js?v=a3b36d07';
+import zhTW from './lang/zh-TW.js?v=a3b36d07';
+import de from './lang/de.js?v=a3b36d07';
+import pt from './lang/pt.js?v=a3b36d07';
+import ru from './lang/ru.js?v=a3b36d07';
+import it from './lang/it.js?v=a3b36d07';
 
 export const EXTRA = { 'zh-TW': zhTW, ja, ko, es, fr, de, pt, ru, it };
 export const LANGS = {
@@ -38,6 +38,74 @@ export function setLang(l) {
 }
 
 const D = {
+  "ui.districtEffects": ["District effects", "建筑效果"],
+  "ui.pass": ["Pass", "跳过"],
+  "ui.payment": ["Choose payment", "选择支付方式"],
+  "ui.sacrifice": ["Sacrifice {dist}", "牺牲{dist}"],
+  "ui.armoryGo": ["Sacrifice Armory and destroy", "牺牲军械库并摧毁"],
+  "ui.monumentLimit": ["Monument requires fewer than 5 districts", "少于5座建筑时才能建造纪念碑"],
+  "ui.takeGoldN": ["Take {n} gold", "拿取{n}金币"],
+  "ui.stored": ["Stored cards: {n}", "藏品：{n}张"],
+  "l.museum": ["{name} stores a card in the Museum.", "{name}向博物馆存入一张牌。"],
+  "l.theater": ["{name} exchanges characters with {target}.", "{name}与{target}交换角色。"],
+  "l.sacrifice": ["{name} sacrifices {dist}.", "{name}牺牲了{dist}。"],
+  "d.armory": ["Armory", "军械库"],
+  "dd.armory": ["Sacrifice this district to destroy another district. Neither district may be in a completed city. Bishop, Keep and Great Wall do not protect the target.", "牺牲此建筑以摧毁另一座建筑。两座建筑均不能位于已完成的城市。主教、堡垒及长城无法保护目标。"],
+  "d.framework": ["Framework", "脚手架"],
+  "dd.framework": ["When building, you may sacrifice this district instead of paying the construction cost. This free construction cannot be confiscated.", "建造时可牺牲此建筑，代替支付建造费用。此次免费建造不能被没收。"],
+  "d.gold_mine": ["Gold Mine", "金矿"],
+  "dd.gold_mine": ["Taking gold for your resource action grants 1 additional gold.", "选择金币作为本次资源时，额外获得1金币。"],
+  "d.imperial_treasury": ["Imperial Treasury", "帝国宝库"],
+  "dd.imperial_treasury": ["At game end, gain 1 point per gold remaining in your stash.", "游戏结束时，储备中的每枚金币额外计1分。"],
+  "d.monument": ["Monument", "纪念碑"],
+  "dd.monument": ["Contributes 2 districts toward completion, but only one physical district for other effects. Cannot be built with 5 or more districts in your city.", "城市完成度计为2座，其他效果仍只计1座实体建筑。城市已有至少5座建筑时不能建造。"],
+  "d.museum": ["Museum", "博物馆"],
+  "dd.museum": ["Once per character turn, store one hand card facedown here. Each stored card scores 1 point. Cards follow this Museum on transfer and return to the deck when it is destroyed.", "每个角色回合可将1张手牌背面朝上存于此处，每张计1分。转移时藏品随馆移动；摧毁时藏品返回牌库底。"],
+  "d.necropolis": ["Necropolis", "大墓园"],
+  "dd.necropolis": ["You may sacrifice one district in your city instead of paying to build this district. This free construction cannot be confiscated.", "建造此建筑时，可牺牲自己城市中的一座建筑代替支付费用。此次免费建造不能被没收。"],
+  "d.park": ["Park", "公园"],
+  "dd.park": ["At the end of each of your character turns, draw 2 cards if your hand is empty.", "每个角色回合结束时，若没有手牌，抽2张牌。"],
+  "d.poor_house": ["Poor House", "救济院"],
+  "dd.poor_house": ["At the end of each of your character turns, gain 1 gold if your stash is empty.", "每个角色回合结束时，若没有金币，获得1金币。"],
+  "d.stables": ["Stables", "马厩"],
+  "dd.stables": ["Building this district does not consume your building allowance. The Navigator still cannot build it.", "建造此建筑不占用建造次数。航海家仍然不能建造。"],
+  "d.statue": ["Statue", "雕像"],
+  "dd.statue": ["At game end, gain 5 extra points if you hold the crown.", "游戏结束时，若持有王冠，额外获得5分。"],
+  "d.theater": ["Theater", "剧院"],
+  "dd.theater": ["After selection, optionally exchange one of your chosen characters with a random character of another player. Only the two players see their new characters.", "选角结束后，可用自己选定的一个角色与另一位玩家的随机角色交换。仅双方能看到新角色。"],
+
+  "c.emperor": ["Emperor", "皇帝"],
+  "a.emperor": ["Gain 1 gold per noble district. You must give the crown to someone other than yourself or its current owner, taking 1 gold or a random hand card from the recipient (nothing if both are empty). If killed, assign the crown at round end without tribute. Requires 3+ players.", "每座贵族建筑获得1金币。必须将王冠交给自己和当前持有者之外的玩家，并拿走其1金币或随机1张手牌（两者皆无则不拿）。被杀后在回合结束时分配王冠，不收贡品。至少3人。"],
+  "ui.emperorTitle": ["Assign the crown", "分配王冠"],
+  "ui.emperorAdvisor": ["Emperor’s advisor: assign the crown", "皇帝顾问：分配王冠"],
+  "ui.emperorPlayers": ["Emperor requires at least 3 players.", "皇帝至少需要3名玩家。"],
+  "ui.emperor.gold": ["Take 1 gold", "拿走1金币"],
+  "ui.emperor.card": ["Take a random card", "随机拿走1张牌"],
+  "ui.emperor.none": ["No tribute", "无贡品"],
+  "l.emperorTribute": ["{name} receives tribute from {target}: {resource}", "{name}从{target}收取贡品：{resource}"],
+
+  "c.blackmailer": ["Blackmailer", "勒索者"],
+  "a.blackmailer": ["Assign two threats: one flower, one decoy. After gathering resources, each threatened character may pay half their gold (rounded down) to remove the threat unseen. After refusal, you may reveal the flower to take all their gold.", "分配两个威胁标记：一朵花、一个诱饵。受威胁角色收集资源后，可支付一半金币（向下取整）并秘密移除标记。若其拒绝，你可翻开花朵标记，拿走其全部金币。"],
+  "ui.threatTitle": ["Assign threats", "分配威胁"],
+  "ui.threatHint": ["Select two characters. The first gets the flower; the second is a decoy. Tap again to remove a selection.", "选择两个角色。首选获得花朵，第二个为诱饵。再次点击可移除。"],
+  "ui.threatFlower": ["Flower", "花朵"],
+  "ui.threatDecoy": ["Decoy", "诱饵"],
+  "ui.threat": ["Threat", "威胁"],
+  "ui.threatGather": ["Gather resources first, then resolve your threat. Character abilities wait until afterward.", "先收集资源，再处理威胁。角色能力须在此后使用。"],
+  "ui.threatReview": ["Resolve threat", "处理威胁"],
+  "ui.threatPay": ["Bribe · {n} gold", "贿赂 · {n}金"],
+  "ui.threatRefuse": ["Refuse", "拒绝"],
+  "ui.threatBribeHint": ["Pay half your gold, rounded down, to remove the marker unseen. If you refuse, Blackmailer may reveal it; a flower takes all your gold. A bribe can cost zero.", "支付一半金币（向下取整），不翻开标记并将其移除。若拒绝，勒索者可翻开标记；花朵会夺走你全部金币。贿赂可以为零金。"],
+  "ui.threatRevealTitle": ["Review refused threat", "审查被拒威胁"],
+  "ui.threatRevealHint": ["Reveal this marker or pass. A flower takes the threatened player’s current gold; a decoy takes nothing. Passing ends this threat without revealing it.", "翻开此标记或放弃。花朵夺取受威胁玩家现有全部金币；诱饵没有收益。放弃会结束威胁，且不展示标记。"],
+  "ui.threatReveal": ["Reveal marker", "翻开标记"],
+  "ui.threatPass": ["Pass", "放弃"],
+  "ui.waitingThreat": ["Waiting for {name} to resolve a threat…", "等待{name}处理威胁……"],
+  "l.threats": ["{name} threatens {chars}.", "{name}威胁了{chars}。"],
+  "l.bribe": ["{from} pays {to} a bribe of {n} gold.", "{from}向{to}支付{n}金贿赂。"],
+  "l.threatRefused": ["{name} refuses the threat on {char}.", "{name}拒绝了对{char}的勒索。"],
+  "l.threatRevealed": ["{to} reveals {face} on {char}, taking {n} gold from {from}.", "{to}翻开{char}的{face}标记，从{from}处拿走{n}金。"],
+  "l.threatPassed": ["{name} passes on the threat against {char}.", "{name}放弃了对{char}的威胁。"],
   "c.tax_collector": ["Tax Collector", "税务官"],
   "a.tax_collector": ["While this character is in the cast, each construction pays 1 gold from the final owner’s remaining stash into the tax pool. Your Tax Collector turn is exempt. Once this turn, you may collect the entire pool; uncollected taxes carry over.", "本局选用税务官时，每次建造后，最终拥有者若有余金，须向税池缴纳1金。税务官自己的角色回合免税。每回合可收取整个税池一次；未收税金保留至以后轮次。"],
   "c.marshal": ["Marshal", "元帅"],
@@ -45,6 +113,7 @@ const D = {
   "ui.taxPool": ["Tax pool: {n}", "税池：{n}"],
   "ui.collectTax": ["Collect {n} gold", "收取{n}金"],
   "ui.seizeCost": ["Pay owner {n} gold", "付给拥有者{n}金"],
+  "seize.keep": ["Protected from rank 8", "受保护，不能被8级角色选为目标"],
   "seize.duplicate": ["Already in your city", "城市中已有同名建筑"],
   "seize.expensive": ["Costs more than 3", "费用超过3金"],
   "seize.poor": ["Not enough gold", "金币不足"],
@@ -87,13 +156,13 @@ const D = {
   'a.thief': ['Name a character (not the Assassin or the slain). When they are called, take all their gold.', '指定一个角色（不能是刺客或被刺杀者），其登场时你拿走他全部金币。'],
   'a.magician': ['Swap your whole hand with another player — or discard any cards and redraw as many.', '与另一位玩家交换全部手牌；或弃掉任意张手牌并摸取等量新牌。'],
   'a.king': ['Take the Crown. +1 gold per noble (yellow) district. Slain? You still inherit the Crown.', '获得王冠。每座贵族（黄）建筑 +1 金。即使被刺杀，回合结束仍继承王冠。'],
-  'a.bishop': ['+1 gold per religious (blue) district. The Warlord cannot touch your city unless you are slain.', '每座宗教（蓝）建筑 +1 金。除非你被刺杀，军阀不能摧毁你的建筑。'],
+  "a.bishop": ["+1 gold per religious (blue) district. Rank-8 characters cannot target your city unless you are assassinated.", "每座宗教（蓝）建筑 +1 金。除非你被刺杀，所有8级角色都不能对你的城市使用能力。"],
   'a.merchant': ['+1 gold, plus +1 per trade (green) district.', '额外 +1 金，并且每座贸易（绿）建筑 +1 金。'],
   'a.architect': ['Draw 2 extra cards. Build up to 3 districts this turn.', '额外摸 2 张牌。本回合最多建造 3 座建筑。'],
   'a.warlord': ['+1 gold per military (red) district. Destroy one district for its cost − 1 (not in a completed city).', '每座军事（红）建筑 +1 金。支付「造价 − 1」摧毁一座建筑（已完成的城市除外）。'],
   'a.queen': ['+3 gold if you sit right next to the King\'s player.', '若你紧挨着国王的玩家而坐，获得 3 金。'],
   'a.navigator': ['Gain 4 gold or 4 cards. You may not build this turn.', '获得 4 金或 4 张牌。本回合不能建造。'],
-  'a.wizard': ['Look at a player\'s hand and take one card: keep it, or build it at once as a bonus build.', '查看一位玩家的手牌并拿走一张：留在手中，或立即额外建造。'],
+  'a.wizard': ['Look at a player\'s hand and take one card: keep it, or build it at once as a bonus build. You may build identical districts throughout this turn.', '查看一位玩家的手牌并拿走一张：留在手中，或立即额外建造。本角色回合内可建造同名建筑。'],
   'a.patrician': ['Take the Crown. Draw 1 card per noble (yellow) district.', '获得王冠。每座贵族（黄）建筑摸 1 张牌。'],
   'a.abbot': ['+1 gold per religious (blue) district. The richest player gives you 1 gold.', '每座宗教（蓝）建筑 +1 金。最富有的玩家给你 1 金。'],
   'a.scholar': ['Draw 7 cards, keep 1, shuffle the rest back. Build up to 2 districts.', '摸 7 张牌保留 1 张，其余洗回牌堆。本回合最多建造 2 座。'],
@@ -108,7 +177,7 @@ const D = {
   'd.temple': ['Temple', '神殿'], 'd.church': ['Church', '教堂'], 'd.monastery': ['Monastery', '修道院'], 'd.cathedral': ['Cathedral', '大教堂'],
   'd.tavern': ['Tavern', '酒馆'], 'd.market': ['Market', '集市'], 'd.trading_post': ['Trading Post', '贸易站'], 'd.docks': ['Docks', '船坞'],
   'd.harbor': ['Harbor', '港口'], 'd.town_hall': ['Town Hall', '市政厅'],
-  'd.watchtower': ['Watchtower', '瞭望塔'], 'd.prison': ['Prison', '监狱'], 'd.battlefield': ['Battlefield', '战场'], 'd.fortress': ['Fortress', '要塞'],
+  'd.watchtower': ['Watchtower', '瞭望塔'], 'd.prison': ['Prison', '监狱'], 'd.battlefield': ['Barracks', '兵营'], 'd.fortress': ['Fortress', '要塞'],
   'd.haunted_city': ['Haunted Quarter', '鬼城'], 'd.factory': ['Factory', '工厂'], 'd.dragon_gate': ['Dragon Gate', '龙门'],
   'd.university': ['University', '大学'], 'd.thieves_den': ['Thieves\' Den', '盗贼巢穴'], 'd.keep': ['Keep', '要塞堡垒'],
   'd.graveyard': ['Graveyard', '墓地'], 'd.observatory': ['Observatory', '天文台'], 'd.smithy': ['Smithy', '铁匠铺'],
@@ -121,7 +190,7 @@ const D = {
   'dd.dragon_gate': ['+2 points at game end.', '游戏结束时 +2 分。'],
   'dd.university': ['+2 points at game end.', '游戏结束时 +2 分。'],
   'dd.thieves_den': ['Pay its cost with any mix of gold and cards from your hand.', '可用金币与手牌的任意组合支付造价。'],
-  'dd.keep': ['The Warlord cannot destroy it.', '军阀无法摧毁。'],
+  "dd.keep": ["Rank-8 characters cannot target this district.", "所有8级角色都不能以此建筑为目标。"],
   'dd.graveyard': ['When the Warlord destroys one of your districts, pay 1 gold to take it back into your hand.', '军阀摧毁你的建筑时，支付 1 金将其收回手牌。'],
   'dd.observatory': ['When drawing for income, draw 3 cards instead of 2.', '摸牌收入时改为摸 3 张。'],
   'dd.smithy': ['Once per turn: pay 2 gold to draw 3 cards.', '每回合一次：支付 2 金摸 3 张牌。'],
@@ -130,7 +199,7 @@ const D = {
   'dd.wishing_well': ['+1 point per other unique district at game end.', '游戏结束时每座其他特殊建筑 +1 分。'],
   'dd.map_room': ['+1 point per card in your hand at game end.', '游戏结束时每张手牌 +1 分。'],
   'dd.secret_vault': ['Never reveals its worth: +3 points at game end.', '价值秘而不宣：游戏结束时 +3 分。'],
-  'dd.great_wall': ['The Warlord pays 1 more to destroy your other districts.', '军阀摧毁你的其他建筑需多付 1 金。'],
+  "dd.great_wall": ["Rank-8 characters pay 1 extra gold to target your other districts.", "所有8级角色以你的其他建筑为目标时，需多付 1 金。"],
   'dd.quarry': ['You may build districts you already have.', '你可以建造与城中同名的建筑。'],
   'dd.basilica': ['+1 point per odd-cost district in your city.', '城中每座奇数造价建筑 +1 分。'],
   'dd.capitol': ['+3 points if you have 3+ districts of one colour.', '若有 3 座以上同色建筑，+3 分。'],

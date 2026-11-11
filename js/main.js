@@ -1,16 +1,16 @@
 // App controller: owns the authoritative state (solo/host), the AI driver, event playback,
 // persistence, turn timer, emotes, stats and the host/peer plumbing. UI, lobby and scene are views.
 
-import { createScene } from './scene.js?v=ec8020af';
-import { createUI, EMOTES } from './ui.js?v=ec8020af';
-import { createLobby } from './lobby.js?v=ec8020af';
-import { createGame, act, viewFor, currentActor, VERSION } from './engine.js?v=ec8020af';
-import { aiAction, safeAction } from './ai.js?v=ec8020af';
-import { DIST_IDS, AI_NAMES, AVATARS, PRESETS } from './data.js?v=ec8020af';
-import { t, getLang, setLang } from './i18n.js?v=ec8020af';
-import * as net from './net.js?v=ec8020af';
-import { initSettings, openSettings, closeSettings } from './settings.js?v=ec8020af';
-import { startTutorial, stopTutorial, tutorialActive } from './tutorial.js?v=ec8020af';
+import { createScene } from './scene.js?v=a3b36d07';
+import { createUI, EMOTES } from './ui.js?v=a3b36d07';
+import { createLobby } from './lobby.js?v=a3b36d07';
+import { createGame, act, viewFor, currentActor, VERSION } from './engine.js?v=a3b36d07';
+import { aiAction, safeAction } from './ai.js?v=a3b36d07';
+import { DIST_IDS, AI_NAMES, AVATARS, PRESETS } from './data.js?v=a3b36d07';
+import { t, getLang, setLang } from './i18n.js?v=a3b36d07';
+import * as net from './net.js?v=a3b36d07';
+import { initSettings, openSettings, closeSettings } from './settings.js?v=a3b36d07';
+import { startTutorial, stopTutorial, tutorialActive } from './tutorial.js?v=a3b36d07';
 
 const SPEED = { slow: 1.45, normal: 1, fast: 0.5 };
 const store = {
@@ -186,7 +186,7 @@ function aiReact(e) { // AIs occasionally react, so the table feels inhabited
   const r = Math.random();
   let pick = null;
   if (['destroy', 'seize'].includes(e.k) && ai(e.target) && r < 0.6) pick = [e.target, '😡'];
-  else if (e.k === 'robbed' && ai(e.from) && r < 0.5) pick = [e.from, '😮'];
+  else if (['robbed', 'bribe', 'threatRevealed'].includes(e.k) && e.n > 0 && e.from !== e.to && ai(e.from) && r < 0.5) pick = [e.from, '😮'];
   else if (e.k === 'destroy' && ai(e.pid) && r < 0.35) pick = [e.pid, '😈'];
   else if (e.k === 'complete' && ai(e.pid)) pick = [e.pid, '👑'];
   else if (e.k === 'over' && ai(e.winner)) pick = [e.winner, '🎉'];
@@ -362,6 +362,7 @@ function removeSeat(i) {
 function startHost() {
   const R = G.room;
   if (!R || R.seats.length < 2) return;
+  if (R.seats.length === 2 && R.chars.includes(22)) { ui.toast(t('ui.emperorPlayers'), 'danger'); return; }
   G.cfg = { players: R.seats.map(s => ({ name: s.name, avatar: s.avatar, ai: s.ai })), chars: R.chars, goal: R.goal, level: R.level };
   G.me = 0;
   enterGame('host');

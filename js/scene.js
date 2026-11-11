@@ -1,8 +1,8 @@
 // Event-driven 2D miniature board. Art is baked from the original models into
 // assets/districts; no WebGL, camera, post-processing or animation loop.
 // This module only receives each player's permitted view.
-import { HUE, SEAT_HUES } from './data.js?v=ec8020af';
-import { t, dname } from './i18n.js?v=ec8020af';
+import { HUE, SEAT_HUES } from './data.js?v=a3b36d07';
+import { t, dname } from './i18n.js?v=a3b36d07';
 
 export function createScene(root, hooks = {}) {
   const seats = new Map(), timers = new Set();
@@ -132,6 +132,15 @@ export function createScene(root, hooks = {}) {
     },
     fx(e) {
       if (calm) return;
+      if (e.k === 'emperorTribute' || e.k === 'bribe' || e.k === 'threatRevealed') {
+        for (const pid of new Set([e.from, e.to])) {
+          const seat = seats.get(pid);
+          if (!seat) continue;
+          seat.el.classList.add('board-flash');
+          later(() => seat.el.classList.remove('board-flash'), 650);
+        }
+        return;
+      }
       const s = seats.get(e.pid);
       if (!s) return;
       s.el.classList.add('board-flash');

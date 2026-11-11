@@ -1,6 +1,6 @@
 // Run: node test/spy.test.mjs
 import assert from 'node:assert/strict';
-import { createGame, act, actInPlace, viewFor, currentActor } from '../js/engine.js';
+import { physicalCards, createGame, act, actInPlace, viewFor, currentActor } from '../js/engine.js';
 import { aiAction, safeAction, spyRewards, spyOptions } from '../js/ai.js';
 import { determinize } from '../js/search.js';
 import { makeDeck, COLORS } from '../js/data.js';
@@ -25,8 +25,7 @@ function give(s, pid, id, fallbackColor) {
   const card = s.deck.splice(index, 1)[0]; s.players[pid].hand.push(card); return card;
 }
 function conserve(s) {
-  const cards = [...s.deck, ...s.players.flatMap(p => [...p.hand, ...p.city]),
-    ...(s.turn?.pending?.k === 'keep' ? s.turn.pending.cards : []), ...(s.interrupt ? [s.interrupt.card] : [])];
+  const cards = physicalCards(s);
   assert.equal(cards.length, makeDeck().length);
   assert.equal(new Set(cards.map(c => c.uid)).size, cards.length);
 }

@@ -27,9 +27,12 @@ To play the **Spy**, open **Custom** character selection and choose Spy at rank 
 
 In **Custom**, choose **Marshal** at rank VIII or **Tax Collector** at rank IX. Marshal pays an opponent the full cost (up to three gold) to seize one eligible district. With Tax Collector in the cast, construction pays one tax from the final owner's remaining gold; its own character turn is exempt. Collect the shared pool once during its turn, or leave it for a later round. Keep and Great Wall retain their existing Warlord-only effects.
 
+Choose **Blackmailer** at rank II to place two hidden threats: one flower and one decoy. Threatened characters gather resources, then choose whether to pay half their gold (rounded down) to remove the marker unseen. After refusal, Blackmailer may reveal it; the flower takes all their gold. Character abilities resume afterward, including Patrician's crown and noble-card draw. Threats and Magistrate warrants can coexist on the same character.
+
 ## Features
 
 - **2–7 players**, solo or online.
+- **84 district cards across 47 names:** the revised-edition catalogue, including 30 unique districts. Framework/Necropolis offer sacrifice payments, Museum stores facedown cards, and Theater can exchange drafted characters. Open **District effects** during your turn to use active buildings. The default game shuffles the full catalogue; published 14-unique selection is a separate setup feature.
 - **Cunning AI:** opponents infer hidden roles and look ahead before key moves. The AI uses only its permitted view, including private hand inspections granted by character abilities.
 - **11 languages:** English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français, Deutsch, Português, Русский and Italiano. Pick one in ⚙️ Settings at any time.
 - **Settings (⚙️):** four generated music tracks (Candlelight, Moonlit Garden, Neon Citadel, Tavern Night) with volume, AI speed, a check before ending a turn with builds left, turn alerts (tab title flash, vibration), reduce motion and colour-blind card symbols.
@@ -58,7 +61,7 @@ node test/ai-duel.mjs 400     # Tuned vs baseline Cunning AI win rate
 
 For a repeatable Spy interface check, open `http://localhost:5173/test/spy-ui.html` while the local server is running. This fixture uses the real HUD and engine with six opponents, including a penniless target holding four trade districts. Check the selection and inspection panels at 393×852 as well as on desktop.
 
-For Marshal targeting and the public tax pool, open `http://localhost:5173/test/tax-marshal-ui.html`. Add `?tax` for collection, `?tax&pending` for warrant/save recovery, or `&lang=de` to inspect translations. Fixture reloads preserve their state within the tab. Review desktop and 393×852 layouts. Save version 5 excludes older saves because they lack persistent tax state.
+For Marshal targeting and the public tax pool, open `http://localhost:5173/test/tax-marshal-ui.html`. Add `?tax` for collection, `?tax&pending` for warrant/save recovery, or `&lang=de` to inspect translations. Fixture reloads preserve their state within the tab. Review desktop and 393×852 layouts. Save version 8 excludes older saves because catalogue UIDs changed and Museum storage and Theater decisions require the new schema. See [district implementation notes](spec/new-cards/implementation.md) for rulings and remaining edition differences.
 
 | File | Role |
 |---|---|
@@ -75,6 +78,6 @@ For Marshal targeting and the public tax pool, open `http://localhost:5173/test/
 
 For a repeatable seven-player board check, open `http://localhost:5173/test/board-ui.html`. Add `?marshal` for seizure targeting or `?players=2&lang=de` for a two-player German layout. The fixture uses the real engine, board, and HUD. `node test/board.test.mjs` runs browser checks with Playwright installed and the local server running; `PLAYWRIGHT_MODULE` can point to a bundled Playwright module.
 
-To regenerate artwork after editing a model, keep the server running and run `node tools/render-art.mjs` with Playwright installed and Chrome available. This authoring tool uses Three.js from its CDN and writes 37 WebP images to `assets/districts/`. Three.js is never loaded by the game. `CITADELS_BROWSER` selects another Playwright browser channel and `CITADELS_URL` overrides the local server URL.
+To regenerate artwork after editing a model, keep the server running and run `node tools/render-art.mjs` with Playwright installed and Chrome available. This authoring tool uses Three.js from its CDN and writes 47 WebP images to `assets/districts/`. Pass district IDs to render only those images, for example `node tools/render-art.mjs armory museum`. Three.js is never loaded by the game. `CITADELS_BROWSER` selects another Playwright browser channel and `CITADELS_URL` overrides the local server URL.
 
 Merging to `main` publishes the link above automatically, and every pull request gets its own preview link.

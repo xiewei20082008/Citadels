@@ -2,14 +2,13 @@
 // Plays hundreds of all-AI games across player counts, character sets with Cunning AI, fuzzes the
 // action API with garbage, and checks rules + hidden-information invariants.
 import assert from 'node:assert/strict';
-import { createGame, act, viewFor, currentActor, score, charsPerPlayer, shielded } from '../js/engine.js';
+import { physicalCards, createGame, act, viewFor, currentActor, score, charsPerPlayer, shielded } from '../js/engine.js';
 import { aiAction, safeAction } from '../js/ai.js';
 import { PRESETS, makeDeck } from '../js/data.js';
 import { KEYS, t, RULES, EXTRA, pickLang } from '../js/i18n.js';
 
 const TOTAL = makeDeck().length;
-const cardsInPlay = s => s.deck.length + s.players.reduce((t, p) => t + p.hand.length + p.city.length, 0) +
-  (s.turn?.pending?.k === 'keep' ? s.turn.pending.cards.length : 0) + (s.interrupt ? 1 : 0);
+const cardsInPlay = s => physicalCards(s).length;
 
 function step(s) {
   const pid = currentActor(s);
